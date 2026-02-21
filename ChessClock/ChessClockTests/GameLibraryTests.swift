@@ -20,6 +20,21 @@ final class GameLibraryTests: XCTestCase {
         }
     }
 
+    func testAllGamesHaveMoveSequenceOfLength12() {
+        for game in GameLibrary.shared.games {
+            XCTAssertEqual(game.moveSequence.count, 12,
+                           "\(game.white) vs \(game.black) (\(game.year)) has \(game.moveSequence.count) moveSequence entries, expected 12")
+        }
+    }
+
+    func testMoveSequence0EqualsFinalMoveForAllGames() {
+        for game in GameLibrary.shared.games {
+            guard !game.finalMove.isEmpty else { continue }
+            XCTAssertEqual(game.moveSequence[0], game.finalMove,
+                           "\(game.white) vs \(game.black) (\(game.year)): moveSequence[0] should equal finalMove")
+        }
+    }
+
     func testNoGameHasEmptyWhiteOrBlackName() {
         for game in GameLibrary.shared.games {
             XCTAssertFalse(game.white.isEmpty,
@@ -41,6 +56,7 @@ final class GameLibraryTests: XCTestCase {
     // MARK: - JSON round-trip
 
     func testChessGameJSONRoundTrip() throws {
+        let testMoveSeq = Array(repeating: "e2e4", count: 12)
         let original = ChessGame(
             white: "Kasparov, G",
             black: "Karpov, A",
@@ -48,6 +64,7 @@ final class GameLibraryTests: XCTestCase {
             blackElo: "2760",
             tournament: "World Chess Championship",
             year: 1986,
+            moveSequence: testMoveSeq,
             positions: Array(repeating: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", count: 12)
         )
         let data = try JSONEncoder().encode(original)
@@ -59,7 +76,20 @@ final class GameLibraryTests: XCTestCase {
         XCTAssertEqual(decoded.blackElo, original.blackElo)
         XCTAssertEqual(decoded.tournament, original.tournament)
         XCTAssertEqual(decoded.year, original.year)
+        XCTAssertEqual(decoded.moveSequence, testMoveSeq)
         XCTAssertEqual(decoded.positions, original.positions)
+    }
+
+    func testChessGameJSONRoundTrip_missingMoveSequenceDefaultsToEmpty() throws {
+        // JSON without moveSequence key should decode with moveSequence == []
+        let jsonString = """
+        {"white":"A","black":"B","whiteElo":"?","blackElo":"?",
+         "tournament":"T","year":2000,"mateBy":"white","finalMove":"e1e2",
+         "positions":\(String(repeating: "[", count: 1))\(Array(repeating: "\"8/8/8/8/8/8/8/8 w - - 0 1\"", count: 12).joined(separator: ","))]}
+        """
+        let data = jsonString.data(using: .utf8)!
+        let decoded = try JSONDecoder().decode(ChessGame.self, from: data)
+        XCTAssertEqual(decoded.moveSequence, [], "Missing moveSequence key should decode as empty array")
     }
 
     func testChessGameJSONRoundTrip_withUnknownElo() throws {
