@@ -1,146 +1,308 @@
 import SwiftUI
-import Combine
 
-/// Full interactive board for the "Guess Move" puzzle.
-/// Shown in its own floating window via GuessMoveWindowManager.
+/// Inline multi-move puzzle view. Embedded in ClockView as .puzzle mode (no floating window).
 struct GuessMoveView: View {
     let state: ClockState
     @ObservedObject var guessService: GuessService
+    let onBack: () -> Void
 
-    @State private var showResult = false
-    @State private var showRetryCountdown = false
-    @State private var countdownSeconds = 0
+    // Opponent animation state
+    @State private var opponentMoveText: String? = nil  // non-nil while showing "Opponent played X"
+    @State private var isOpponentAnimating: Bool = false
 
-    private let countdownTimer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
+    // Feedback overlays
+    @State private var showWrongFlash: Bool = false
+    @State private var showSuccess: Bool = false
+    @State private var showFailed: Bool = false
 
     var body: some View {
         ZStack {
-            VStack(spacing: 12) {
+            VStack(spacing: 8) {
                 header
+                contextLine
+                triesIndicator
                 boardSection
-                instructionText
+                statusText
             }
             .padding(16)
 
-            // Result overlay
-            if showResult, let guess = guessService.guess {
-                MoveResultView(guess: guess, game: state.game) {
-                    showResult = false
-                }
-            }
-
-            // Retry countdown overlay
-            if showRetryCountdown {
-                retryOverlay
-            }
+            // Overlays (all inline — no new windows)
+            if showWrongFlash { wrongFlashOverlay }
+            if showSuccess    { successOverlay }
+            if showFailed     { failedOverlay }
         }
-        .frame(width: 380, height: 460)
-        .onReceive(countdownTimer) { _ in
-            if showRetryCountdown {
-                countdownSeconds = max(0, countdownSeconds - 1)
-            }
-        }
+        .onAppear { initializePuzzle() }
     }
 
     // MARK: - Sub-views
 
     private var header: some View {
         HStack {
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Guess the Move")
-                    .font(.headline)
-                Text("\(state.game.white) vs \(state.game.black), \(state.game.year)")
-                    .font(.caption)
+            Button(action: onBack) {
+                HStack(spacing: 4) {
+                    Image(systemName: "chevron.left")
+                        .font(.caption.weight(.semibold))
+                    Text("Back")
+                        .font(.caption.weight(.semibold))
+                }
+                .foregroundColor(.secondary)
+            }
+            .buttonStyle(.plain)
+
+            Spacer()
+
+            VStack(alignment: .trailing, spacing: 1) {
+                Text("\(state.game.white) vs \(state.game.black)")
+                    .font(.caption.weight(.semibold))
+                    .lineLimit(1)
+                Text("\(state.game.year)")
+                    .font(.caption2)
                     .foregroundColor(.secondary)
             }
-            Spacer()
-            Text(state.isAM ? "AM" : "PM")
-                .font(.caption2.weight(.bold))
-                .foregroundColor(.secondary)
+        }
+    }
+
+    private var contextLine: some View {
+        let mating = state.game.mateBy == "white" ? "White" : "Black"
+        let movesText = state.hour == 1 ? "Mate in 1" : "\(state.hour) Moves to Checkmate"
+        return Text("\(state.hour) \(state.isAM ? "AM" : "PM") — \(movesText) — Play as \(mating)")
+            .font(.caption2)
+            .foregroundColor(.secondary)
+            .multilineTextAlignment(.center)
+    }
+
+    private var triesIndicator: some View {
+        let triesUsed = guessService.engine?.triesUsed ?? guessService.result?.triesUsed ?? 1
+        return HStack(spacing: 6) {
+            ForEach(1...3, id: \.self) { i in
+                if i < triesUsed {
+                    // Used a wrong try
+                    Circle()
+                        .fill(Color.red.opacity(0.7))
+                        .frame(width: 10, height: 10)
+                } else {
+                    // Remaining or current try
+                    Circle()
+                        .strokeBorder(Color.secondary.opacity(0.5), lineWidth: 1)
+                        .frame(width: 10, height: 10)
+                }
+            }
         }
     }
 
     private var boardSection: some View {
-        Group {
-            if guessService.hasGuessed {
-                // Always positions[0] — the board right before the final checkmate
-                BoardView(fen: state.game.positions[0], isFlipped: state.isFlipped)
-                    .overlay(
-                        alreadyGuessedBadge,
-                        alignment: .bottom
-                    )
-                    .contentShape(Rectangle())
-                    .onTapGesture { showRetryCountdown = true }
+        let currentFEN = guessService.engine?.currentFEN ?? state.game.positions[state.hour - 1]
+        let boardID = guessService.engine?.currentFEN ?? "done"
+        let userCanPlay = !showWrongFlash && !isOpponentAnimating && !showSuccess && !showFailed
+                          && guessService.engine?.isUserTurn == true
+
+        return Group {
+            if userCanPlay {
+                InteractiveBoardView(
+                    fen: currentFEN,
+                    isFlipped: state.isFlipped
+                ) { move in handleMove(move) }
+                .id(boardID)
             } else {
-                // Always positions[0] so the user guesses from the mate-in-1 position
-                InteractiveBoardView(fen: state.game.positions[0], isFlipped: state.isFlipped) { move in
-                    handleMove(move)
-                }
+                BoardView(fen: currentFEN, isFlipped: state.isFlipped)
+                    .id(boardID)
             }
         }
         .aspectRatio(1, contentMode: .fit)
+        .overlay(alignment: .bottom) {
+            if let opText = opponentMoveText {
+                Text("Opponent: \(opText)")
+                    .font(.caption2.weight(.medium))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(Color.black.opacity(0.65))
+                    .cornerRadius(5)
+                    .padding(.bottom, 6)
+                    .transition(.opacity)
+            }
+        }
+        .animation(.easeInOut(duration: 0.25), value: opponentMoveText)
     }
 
-    private var alreadyGuessedBadge: some View {
-        Text("Tap to see result")
-            .font(.caption2.weight(.medium))
-            .foregroundColor(.white)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 3)
-            .background(Color.black.opacity(0.6))
-            .cornerRadius(5)
-            .padding(.bottom, 6)
-    }
-
-    private var instructionText: some View {
+    private var statusText: some View {
         Group {
-            if guessService.hasGuessed {
-                if let guess = guessService.guess {
-                    HStack(spacing: 6) {
-                        Image(systemName: guess.isCorrect ? "checkmark.circle.fill" : "xmark.circle.fill")
-                            .foregroundColor(guess.isCorrect ? .green : .red)
-                        Text(guess.isCorrect ? "Correct!" : "Incorrect — the move was \(guess.actualMove.uppercased())")
-                            .font(.caption)
-                    }
-                }
-            } else {
+            if guessService.engine?.isUserTurn == true && !showWrongFlash && !isOpponentAnimating {
                 Text("Drag or click a piece, then choose its destination.")
-                    .font(.caption)
+                    .font(.caption2)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
+            } else if isOpponentAnimating {
+                Text("Opponent is moving…")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
             }
         }
     }
 
-    private var retryOverlay: some View {
+    // MARK: - Inline overlays
+
+    private var wrongFlashOverlay: some View {
         ZStack {
-            Color.black.opacity(0.55).ignoresSafeArea()
-            VStack(spacing: 12) {
-                Text("Try again in")
+            Color.black.opacity(0.5).ignoresSafeArea()
+            VStack(spacing: 8) {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.system(size: 40))
+                    .foregroundColor(.red)
+                Text("Not that move")
                     .font(.headline)
                     .foregroundColor(.white)
-                Text(countdownString(countdownSeconds))
-                    .font(.system(size: 36, weight: .bold, design: .monospaced))
-                    .foregroundColor(.white)
-                Button("Close") { showRetryCountdown = false }
-                    .buttonStyle(.bordered)
             }
             .padding(24)
             .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
         }
-        .onAppear { countdownSeconds = guessService.secondsUntilNextHour }
+    }
+
+    private var successOverlay: some View {
+        ZStack {
+            Color.black.opacity(0.55).ignoresSafeArea()
+            VStack(spacing: 16) {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 52))
+                    .foregroundColor(.green)
+
+                Text("Solved!")
+                    .font(.title2.weight(.bold))
+                    .foregroundColor(.white)
+
+                if let result = guessService.result {
+                    Text(result.triesUsed == 1 ? "Solved on the first try!" : "Solved in \(result.triesUsed) tries")
+                        .font(.callout)
+                        .foregroundColor(.white.opacity(0.85))
+                }
+
+                statsLine
+
+                Button("Close") { onBack() }
+                    .buttonStyle(.borderedProminent)
+            }
+            .padding(24)
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20))
+            .padding(16)
+        }
+    }
+
+    private var failedOverlay: some View {
+        ZStack {
+            Color.black.opacity(0.55).ignoresSafeArea()
+            VStack(spacing: 12) {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.system(size: 52))
+                    .foregroundColor(.red)
+
+                Text("Not solved")
+                    .font(.title2.weight(.bold))
+                    .foregroundColor(.white)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("The continuation:")
+                        .font(.caption.weight(.semibold))
+                        .foregroundColor(.white.opacity(0.7))
+                    ForEach(solutionMoves().indices, id: \.self) { i in
+                        Text("\(i + 1). \(solutionMoves()[i].uppercased())")
+                            .font(.body.weight(.bold))
+                            .foregroundColor(.green)
+                    }
+                }
+
+                statsLine
+
+                Button("Close") { onBack() }
+                    .buttonStyle(.borderedProminent)
+            }
+            .padding(24)
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20))
+            .padding(16)
+        }
+    }
+
+    private var statsLine: some View {
+        let s = guessService.stats
+        return Text("All time: \(s.totalPlayed - s.losses)W / \(s.losses)L")
+            .font(.caption)
+            .foregroundColor(.white.opacity(0.7))
     }
 
     // MARK: - Logic
 
-    private func handleMove(_ move: ChessMove) {
-        let actual = state.game.finalMove
-        let isCorrect = move.uci == actual
-        guessService.recordGuess(move: move.uci, isCorrect: isCorrect, actualMove: actual)
-        showResult = true
+    private func initializePuzzle() {
+        guard let autoPlays = guessService.startPuzzle(game: state.game, hour: state.hour) else {
+            // Result already exists for this hour — show it
+            if let result = guessService.result {
+                showSuccess = result.succeeded
+                showFailed = !result.succeeded
+            }
+            return
+        }
+        // Apply any initial opponent auto-plays (when opponent moves first)
+        if !autoPlays.isEmpty {
+            playOpponentMoves(autoPlays)
+        }
     }
 
-    private func countdownString(_ s: Int) -> String {
-        String(format: "%d:%02d", s / 60, s % 60)
+    private func handleMove(_ move: ChessMove) {
+        guard let result = guessService.submitMove(uci: move.uci) else { return }
+        switch result {
+        case .success:
+            showSuccess = true
+
+        case .correctContinue(let opponentMoves):
+            if opponentMoves.isEmpty { break }
+            playOpponentMoves(opponentMoves)
+
+        case .wrong(_, let resetAutoPlays):
+            showWrongFlash = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+                showWrongFlash = false
+                if !resetAutoPlays.isEmpty {
+                    playOpponentMoves(resetAutoPlays)
+                }
+            }
+
+        case .failed:
+            showFailed = true
+        }
+    }
+
+    /// Animate opponent moves sequentially, showing the UCI text for each.
+    private func playOpponentMoves(_ moves: [(uci: String, fen: String)]) {
+        guard !moves.isEmpty else { return }
+        isOpponentAnimating = true
+        playNextOpponentMove(moves, index: 0)
+    }
+
+    private func playNextOpponentMove(_ moves: [(uci: String, fen: String)], index: Int) {
+        guard index < moves.count else {
+            // All done — engine is already at the correct FEN (published via @ObservedObject)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                withAnimation { opponentMoveText = nil }
+                isOpponentAnimating = false
+            }
+            return
+        }
+        let move = moves[index]
+        withAnimation { opponentMoveText = move.uci.uppercased() }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+            playNextOpponentMove(moves, index: index + 1)
+        }
+    }
+
+    /// Mating-side moves in order from the starting position to checkmate.
+    private func solutionMoves() -> [String] {
+        let matingColor: PieceColor = state.game.mateBy == "white" ? .white : .black
+        var moves: [String] = []
+        for i in stride(from: state.hour - 1, through: 0, by: -1) {
+            guard i < state.game.positions.count,
+                  i < state.game.moveSequence.count,
+                  let gs = ChessRules.parseState(fen: state.game.positions[i]),
+                  gs.activeColor == matingColor else { continue }
+            moves.append(state.game.moveSequence[i])
+        }
+        return moves
     }
 }

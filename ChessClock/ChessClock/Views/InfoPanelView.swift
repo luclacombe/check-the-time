@@ -1,11 +1,12 @@
 import SwiftUI
 
 /// Shown when the user taps the board in the main clock view.
-/// Displays game metadata and a "Guess Move" button.
+/// Displays game metadata, result badge, and a "Guess Move" / "View Result" button.
 struct InfoPanelView: View {
     let state: ClockState
     @ObservedObject var guessService: GuessService
     let onBack: () -> Void
+    let onGuess: () -> Void
 
     var body: some View {
         VStack(spacing: 0) {
@@ -47,8 +48,8 @@ struct InfoPanelView: View {
 
             Spacer(minLength: 12)
 
-            // Guess Move button
-            guessMoveButton
+            // Guess Move / View Result button
+            puzzleButton
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
@@ -82,21 +83,18 @@ struct InfoPanelView: View {
         }
     }
 
-    private var guessMoveButton: some View {
+    private var puzzleButton: some View {
         Group {
-            if guessService.hasGuessed {
-                // Already guessed — just show the result inline and a reminder
+            if guessService.hasResult {
                 VStack(spacing: 6) {
                     resultBadge
-                    Button("Open Result") {
-                        GuessMoveWindowManager.shared.open(state: state, guessService: guessService)
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
+                    Button("View Result") { onGuess() }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
                 }
             } else {
                 Button {
-                    GuessMoveWindowManager.shared.open(state: state, guessService: guessService)
+                    onGuess()
                 } label: {
                     Label("Guess Move", systemImage: "chess.king.fill")
                         .frame(maxWidth: .infinity)
@@ -109,11 +107,13 @@ struct InfoPanelView: View {
 
     private var resultBadge: some View {
         Group {
-            if let guess = guessService.guess {
+            if let result = guessService.result {
                 HStack(spacing: 6) {
-                    Image(systemName: guess.isCorrect ? "checkmark.circle.fill" : "xmark.circle.fill")
-                        .foregroundColor(guess.isCorrect ? .green : .red)
-                    Text(guess.isCorrect ? "Correct!" : "Incorrect")
+                    Image(systemName: result.succeeded ? "checkmark.circle.fill" : "xmark.circle.fill")
+                        .foregroundColor(result.succeeded ? .green : .red)
+                    Text(result.succeeded
+                         ? "Solved (try \(result.triesUsed))"
+                         : "Not solved")
                         .font(.caption.weight(.semibold))
                 }
             }
