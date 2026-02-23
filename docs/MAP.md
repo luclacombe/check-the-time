@@ -53,6 +53,8 @@ Key changes:
 
 See `docs/archive/TODO-done-v0.5.0.md` for full task breakdown.
 
+**v0.5.1 (patch):** Fixed replay starting one position too late — `puzzleStartPosIndex` was pointing to the checkmate position instead of the puzzle start (opponent's context move now shown on open). GitHub Latest release badge also corrected.
+
 ---
 
 ## NEXT VERSION — v1.0.0 and beyond

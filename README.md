@@ -28,13 +28,13 @@ It's a clock for chess players who'd rather think about positions than read numb
 
 ## Download
 
-**[⬇ Download ChessClock-0.5.0.dmg](https://github.com/luclacombe/chess-clock/releases/download/v0.5.0/ChessClock-0.5.0.dmg)**
+**[⬇ Download ChessClock-0.5.1.dmg](https://github.com/luclacombe/chess-clock/releases/download/v0.5.1/ChessClock-0.5.1.dmg)**
 
 **Requirements:** macOS 13 (Ventura) or later.
 
 ### Install
 
-1. Download `ChessClock-0.5.0.dmg` from the link above (or the [Releases page](https://github.com/luclacombe/chess-clock/releases))
+1. Download `ChessClock-0.5.1.dmg` from the link above (or the [Releases page](https://github.com/luclacombe/chess-clock/releases))
 2. Open the `.dmg` and drag **ChessClock** to your Applications folder
 3. **First launch:** Right-click the app → **Open** (required — the app is not yet notarized)
 4. The app lives in your menu bar with a ♛ crown icon — no Dock icon
