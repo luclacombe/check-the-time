@@ -19,11 +19,11 @@ struct ClockView: View {
         self._guessService = StateObject(wrappedValue: GuessService(clockService: clockService))
     }
 
-    /// Ring opacity per face: full on clock, dimmed on info, hidden on puzzle/replay.
+    /// Ring opacity per face: full on clock, hidden on info/puzzle/replay.
     private var ringOpacity: Double {
         switch viewMode {
         case .clock:   return 1.0
-        case .info:    return 0.30
+        case .info:    return 0.0
         case .puzzle:  return 0.0
         case .replay:  return 0.0
         }
@@ -32,7 +32,7 @@ struct ClockView: View {
     var body: some View {
         ZStack {
             // Persistent ring layer — behind all faces, opacity varies by mode
-            MinuteBezelView(minute: clockService.state.minute)
+            MinuteBezelView(minute: clockService.state.minute, second: clockService.state.second)
                 .opacity(ringOpacity)
                 .animation(ChessClockAnimation.smooth, value: viewMode)
 
