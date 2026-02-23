@@ -1,8 +1,7 @@
 import SwiftUI
 
-/// Shown when the user taps the board in the main clock view.
-/// The board is a tappable card with a bottom overlay showing the CTA + result badge.
-/// Below the board: game metadata.
+/// Detail face — shown when the user taps the board in the main clock view.
+/// Header (back + gear) → 196×196 board with CTA overlay → game metadata.
 struct InfoPanelView: View {
     let state: ClockState
     @ObservedObject var guessService: GuessService
@@ -12,122 +11,118 @@ struct InfoPanelView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Header
+            // 1. Header
             HStack {
                 Button(action: onBack) {
-                    HStack(spacing: 4) {
-                        Image(systemName: "chevron.left")
-                            .font(.caption.weight(.semibold))
-                        Text("Back")
-                            .font(.caption.weight(.semibold))
-                    }
-                    .foregroundColor(.secondary)
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary)
                 }
                 .buttonStyle(.plain)
+
                 Spacer()
+
+                Button(action: {}) {
+                    Image(systemName: "gearshape")
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary)
+                }
+                .buttonStyle(.plain)
             }
-            .padding(.bottom, 10)
+            .frame(height: ChessClockSize.headerHeight)
 
-            // Board card — tappable, with bottom CTA overlay
-            boardCard
+            // 2. Board with CTA overlay
+            BoardView(fen: state.fen, isFlipped: state.isFlipped)
+                .frame(width: ChessClockSize.boardDetail, height: ChessClockSize.boardDetail)
+                .clipShape(RoundedRectangle(cornerRadius: ChessClockRadius.board))
+                .overlay(alignment: .bottom) {
+                    ctaOverlay
+                }
+                .contentShape(Rectangle())
+                .onTapGesture { tapAction() }
+                .padding(.top, ChessClockSpace.sm)
 
-            Spacer(minLength: 10)
+            // 4. Game metadata
+            VStack(alignment: .leading, spacing: ChessClockSpace.sm) {
+                Text(PlayerNameFormatter.format(pgn: state.game.white, elo: state.game.whiteElo))
+                    .font(ChessClockType.body)
+                    .foregroundColor(.primary)
 
-            // Game metadata
-            gameMetadata
+                Text(PlayerNameFormatter.format(pgn: state.game.black, elo: state.game.blackElo))
+                    .font(ChessClockType.body)
+                    .foregroundColor(.primary)
+
+                Text(eventString)
+                    .font(ChessClockType.caption)
+                    .foregroundColor(.secondary)
+            }
+            .padding(.top, ChessClockSpace.md)
+            .padding(.horizontal, ChessClockSpace.xl)
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            // 5. Bottom spacer
+            Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    // MARK: - Board card
+    // MARK: - CTA Overlay
 
-    private var boardCard: some View {
-        BoardView(fen: state.fen, isFlipped: state.isFlipped)
-            .frame(maxWidth: .infinity)
-            .aspectRatio(1, contentMode: .fit)
-            .overlay(alignment: .bottom) {
-                ctaBar
-            }
-            .contentShape(Rectangle())
-            .onTapGesture { onGuess() }
-    }
-
-    private var ctaBar: some View {
-        HStack(spacing: 6) {
-            // Result badge (shown when puzzle has been played)
-            if guessService.hasResult, let result = guessService.result {
-                HStack(spacing: 4) {
-                    Image(systemName: result.succeeded ? "checkmark.circle.fill" : "xmark.circle.fill")
-                        .foregroundColor(result.succeeded ? .green : .red)
-                        .font(.caption2)
-                    Text(result.succeeded
-                         ? "Solved (try \(result.triesUsed))"
-                         : "Not solved")
-                        .font(.caption2.weight(.semibold))
-                        .foregroundColor(.white)
-                }
-            }
-
-            Spacer()
-
-            // AM/PM badge
-            Text(state.isAM ? "AM" : "PM")
-                .font(.caption2.weight(.bold))
-                .foregroundColor(.white.opacity(0.7))
-
-            // CTA
-            HStack(spacing: 3) {
+    private var ctaOverlay: some View {
+        HStack(spacing: 4) {
+            if !guessService.hasResult {
+                // Not yet played
                 Image(systemName: "play.fill")
-                    .font(.caption2)
-                Text(guessService.hasResult ? "Review" : "Play Puzzle")
-                    .font(.caption.weight(.semibold))
-            }
-            .foregroundColor(.white)
-        }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 5)
-        .background(Color.black.opacity(0.65))
-    }
-
-    // MARK: - Game metadata
-
-    private var gameMetadata: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            metaRow(label: "White", value: playerString(name: state.game.white, elo: state.game.whiteElo))
-            metaRow(label: "Black", value: playerString(name: state.game.black, elo: state.game.blackElo))
-            Divider().padding(.vertical, 2)
-            metaRow(label: "Event", value: state.game.tournament)
-            metaRow(label: "Year",  value: yearString)
-            if let round = state.game.round {
-                metaRow(label: "Round", value: round)
+                    .font(.system(size: 10))
+                Text("Play")
+                    .font(.system(size: 12, weight: .semibold))
+            } else if guessService.result?.succeeded == true {
+                // Solved
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 10))
+                Text("Solved · Review")
+                    .font(.system(size: 12, weight: .semibold))
+            } else {
+                // Failed
+                Image(systemName: "xmark.circle.fill")
+                    .font(.system(size: 10))
+                Text("· Review")
+                    .font(.system(size: 12, weight: .semibold))
             }
         }
-        .font(.caption)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .foregroundColor(ctaForeground)
+        .frame(maxWidth: .infinity)
+        .frame(height: ChessClockSize.headerHeight)
+        .background(ChessClockColor.ctaBg)
+        .clipShape(UnevenRoundedRectangle(bottomLeadingRadius: ChessClockRadius.board, bottomTrailingRadius: ChessClockRadius.board))
+        .contentShape(Rectangle())
+        .onTapGesture { tapAction() }
     }
 
-    private func metaRow(label: String, value: String) -> some View {
-        HStack(alignment: .top, spacing: 4) {
-            Text(label + ":")
-                .fontWeight(.semibold)
-                .foregroundColor(.secondary)
-                .frame(width: 44, alignment: .leading)
-            Text(value)
-                .lineLimit(2)
-                .minimumScaleFactor(0.85)
+    private var ctaForeground: Color {
+        if !guessService.hasResult {
+            return ChessClockColor.accentGold
+        } else if guessService.result?.succeeded == true {
+            return ChessClockColor.feedbackSuccess
+        } else {
+            return ChessClockColor.feedbackError
         }
     }
 
     // MARK: - Helpers
 
-    private func playerString(name: String, elo: String) -> String {
-        elo == "?" || elo.isEmpty ? name : "\(name) (\(elo))"
+    private func tapAction() {
+        if guessService.hasResult {
+            onReplay()
+        } else {
+            onGuess()
+        }
     }
 
-    private var yearString: String {
+    private var eventString: String {
         if let month = state.game.month {
-            return "\(month) \(state.game.year)"
+            return "\(state.game.tournament) · \(String(month.prefix(3))) \(state.game.year)"
         }
-        return "\(state.game.year)"
+        return "\(state.game.tournament) · \(state.game.year)"
     }
 }
