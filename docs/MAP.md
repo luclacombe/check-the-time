@@ -26,16 +26,16 @@ Key changes:
 
 ---
 
-## v0.4.0 — In Planning
+## v0.4.0 — Shipped ✓
 
 Four focused quality-of-life and depth improvements:
 
 1. **No new windows** — Puzzle embedded inline in the MenuBarExtra popover (`ViewMode.puzzle`); `GuessMoveWindowManager` deleted.
 2. **Chess-time hover tooltip** — Hovering the clock board shows e.g. "6 PM — 6 Moves to Checkmate". Puzzle header also shows this context.
-3. **Multi-move puzzle + retries + stats** — Puzzle now starts at `positions[hour-1]`, not always positions[0]. Opponent moves auto-play. 3 total tries. `PuzzleEngine` pure struct drives all logic. Stats (wins by try, losses) persisted to UserDefaults.
+3. **Multi-move puzzle + retries + stats** — Puzzle now starts at `positions[(hour-1)*2]`, not always positions[0]. Opponent moves auto-play. 3 total tries. `PuzzleEngine` pure struct drives all logic. Stats (wins by try, losses) persisted to UserDefaults.
 4. **Auto-open to clock** — `WindowObserver` resets `ViewMode` to `.clock` whenever the MenuBarExtra popover opens.
 
-See `docs/TODO.md` for full task breakdown (P0–P6).
+See `docs/archive/TODO-done-v0.4.0.md` for full task breakdown.
 
 ---
 
