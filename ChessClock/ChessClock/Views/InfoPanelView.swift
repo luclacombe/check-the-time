@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Detail face — shown when the user taps the board in the main clock view.
-/// Header (back + gear) → 196×196 board with CTA overlay → game metadata.
+/// Header (back + gear) → 196×196 board → floating CTA pill → game metadata.
 struct InfoPanelView: View {
     let state: ClockState
     @ObservedObject var guessService: GuessService
@@ -15,8 +15,9 @@ struct InfoPanelView: View {
             HStack {
                 Button(action: onBack) {
                     Image(systemName: "chevron.left")
-                        .font(.system(size: 11))
+                        .font(.system(size: 13, weight: .medium))
                         .foregroundColor(.secondary)
+                        .frame(width: 28, height: 28)
                 }
                 .buttonStyle(.plain)
 
@@ -24,23 +25,40 @@ struct InfoPanelView: View {
 
                 Button(action: {}) {
                     Image(systemName: "gearshape")
-                        .font(.system(size: 11))
+                        .font(.system(size: 13, weight: .medium))
                         .foregroundColor(.secondary)
+                        .frame(width: 28, height: 28)
                 }
                 .buttonStyle(.plain)
             }
             .frame(height: ChessClockSize.headerHeight)
+            .padding(.horizontal, 20)
 
-            // 2. Board with CTA overlay
+            // 2. Board (no CTA overlay)
             BoardView(fen: state.fen, isFlipped: state.isFlipped)
                 .frame(width: ChessClockSize.boardDetail, height: ChessClockSize.boardDetail)
                 .clipShape(RoundedRectangle(cornerRadius: ChessClockRadius.board))
-                .overlay(alignment: .bottom) {
-                    ctaOverlay
-                }
                 .contentShape(Rectangle())
                 .onTapGesture { tapAction() }
-                .padding(.top, ChessClockSpace.sm)
+                .padding(.top, ChessClockSpace.xs)
+
+            // 3. Floating CTA pill
+            Button(action: tapAction) {
+                HStack(spacing: 6) {
+                    Image(systemName: ctaIcon)
+                        .font(.system(size: 10, weight: .semibold))
+                    Text(ctaText)
+                        .font(.system(size: 12, weight: .semibold))
+                }
+                .foregroundColor(ctaForeground)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 7)
+                .background(.ultraThinMaterial)
+                .clipShape(Capsule())
+                .shadow(color: .black.opacity(0.15), radius: 6, x: 0, y: 2)
+            }
+            .buttonStyle(.plain)
+            .padding(.top, 6)
 
             // 4. Game metadata
             VStack(alignment: .leading, spacing: ChessClockSpace.sm) {
@@ -56,47 +74,29 @@ struct InfoPanelView: View {
                     .font(ChessClockType.caption)
                     .foregroundColor(.secondary)
             }
-            .padding(.top, ChessClockSpace.md)
+            .padding(.top, ChessClockSpace.sm)
             .padding(.horizontal, ChessClockSpace.xl)
             .frame(maxWidth: .infinity, alignment: .leading)
 
             // 5. Bottom spacer
             Spacer()
         }
+        .padding(.top, 8)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    // MARK: - CTA Overlay
+    // MARK: - CTA Properties
 
-    private var ctaOverlay: some View {
-        HStack(spacing: 4) {
-            if !guessService.hasResult {
-                // Not yet played
-                Image(systemName: "play.fill")
-                    .font(.system(size: 10))
-                Text("Play")
-                    .font(.system(size: 12, weight: .semibold))
-            } else if guessService.result?.succeeded == true {
-                // Solved
-                Image(systemName: "checkmark.circle.fill")
-                    .font(.system(size: 10))
-                Text("Solved · Review")
-                    .font(.system(size: 12, weight: .semibold))
-            } else {
-                // Failed
-                Image(systemName: "xmark.circle.fill")
-                    .font(.system(size: 10))
-                Text("· Review")
-                    .font(.system(size: 12, weight: .semibold))
-            }
-        }
-        .foregroundColor(ctaForeground)
-        .frame(maxWidth: .infinity)
-        .frame(height: ChessClockSize.headerHeight)
-        .background(ChessClockColor.ctaBg)
-        .clipShape(UnevenRoundedRectangle(bottomLeadingRadius: ChessClockRadius.board, bottomTrailingRadius: ChessClockRadius.board))
-        .contentShape(Rectangle())
-        .onTapGesture { tapAction() }
+    private var ctaIcon: String {
+        if !guessService.hasResult { return "play.fill" }
+        if guessService.result?.succeeded == true { return "checkmark" }
+        return "arrow.counterclockwise"
+    }
+
+    private var ctaText: String {
+        if !guessService.hasResult { return "Play" }
+        if guessService.result?.succeeded == true { return "Solved" }
+        return "Review"
     }
 
     private var ctaForeground: Color {
@@ -105,7 +105,7 @@ struct InfoPanelView: View {
         } else if guessService.result?.succeeded == true {
             return ChessClockColor.feedbackSuccess
         } else {
-            return ChessClockColor.feedbackError
+            return .secondary
         }
     }
 
