@@ -326,13 +326,13 @@ final class GameReplayViewTests: XCTestCase {
 
     func testComputeAllPositions_puzzleStartMapsCorrectly() {
         // For a game with 10 moves (tenMoves), hour=1 → (hour-1)*2 = 0
-        // psi = positions.count - 1 - 0 = 11 - 1 = 10 = totalMoves
-        // i.e. puzzle start IS the checkmate position for hour 1
+        // psi = positions.count - 2 - 0 = 11 - 2 = 9 = totalMoves - 1
+        // i.e. puzzle start is 1 before checkmate (mating side to move, opponent's arrow shown)
         let game = makeGame(allMoves: tenMoves)
         let positions = GameReplayView.computeAllPositions(game: game)
-        let psi = max(0, positions.count - 1 - (1 - 1) * 2)  // hour 1 → psi = N = 10
-        XCTAssertEqual(psi, 10)
-        XCTAssertEqual(psi, positions.count - 1,
-                       "For hour 1, puzzle start should be the last position (checkmate)")
+        let psi = max(0, positions.count - 2 - (1 - 1) * 2)  // hour 1 → psi = N-1 = 9
+        XCTAssertEqual(psi, 9)
+        XCTAssertEqual(psi, positions.count - 2,
+                       "For hour 1, puzzle start is 1 before checkmate (mating side to move)")
     }
 }

@@ -67,7 +67,7 @@ struct GameReplayView: View {
         let positions = Self.computeAllPositions(game: game)
         self.allPositions = positions
 
-        let psi = max(0, positions.count - 1 - (hour - 1) * 2)
+        let psi = max(0, positions.count - 2 - (hour - 1) * 2)
         self.puzzleStartPosIndex = psi
         self._posIndex = State(initialValue: psi)
     }
