@@ -5,6 +5,38 @@
 
 ---
 
+## 2026-02-23 — Sprint 3: Detail Face
+**Goal:** Ship the info panel with proper information hierarchy, equalized bezel gaps, and always-visible tick marks.
+**Completed:**
+- S3-1 DesignTokens — ringInset 4→5, bezelGap 2→1, ring radius 10→9, tickLength 4→6, tickWidth 1.5→2
+- S3-2 MinuteBezelView — all 4 cardinal ticks now .white, removed conditional gold/gray logic
+- S3-3 ClockView — MinuteBezelView persistent background layer, ring opacity per face (1.0/0.30/0.0/0.0), animated transitions, InfoPanelView gains onReplay
+- S3-4 InfoPanelView — complete rewrite: 28pt header (chevron + gear), 196×196 board with CTA overlay, PlayerNameFormatter names, abbreviated event line, removed Round/AM-PM/labels/Divider
+**Blocked / Skipped:** None
+**Agents deployed:** 3 (Agent A: S3-2, Agent B: S3-3, Agent C: S3-4) + Senior: S3-1
+**Next session:** Run `/plan-sprint` to set up Sprint 4 (Puzzle Face)
+**Notes:**
+- All 107 tests pass, zero regressions
+- 4 commits: c481cd1 (tokens), b73ff73 (ticks), 6251f69 (ClockView+ring), d31b00a (InfoPanel)
+- S3-2 and S3-3 ran in parallel after S3-1; S3-4 ran sequentially after S3-3
+
+---
+
+## 2026-02-23 — Sprint 3 Planning
+**Goal:** Plan Sprint 3 (Detail Face) from DESIGN.md
+**Completed:**
+- Ran `/plan-sprint` — decomposed Sprint 3 into 4 tasks (S3-1 through S3-4)
+- Verified DESIGN.md coverage: all 10 Sprint 3 line items mapped to tasks
+- Solved bezel asymmetry: ringInset 4→5 equalizes outer/inner gaps to 1pt each (board stays 280)
+- Identified S3-1 (tokens) as blocker for S3-2/S3-3; S3-3 blocks S3-4; S3-2 is independent after S3-1
+**Blocked / Skipped:** None
+**Next session:** Run `/sprint` to execute Sprint 3
+**Notes:**
+- Interface contract: InfoPanelView gains `onReplay` callback (S3-3 adds signature, S3-4 uses it)
+- GameInfoView.swift may be dead code — not used by InfoPanelView. Defer cleanup.
+
+---
+
 ## 2026-02-23 — Sprint 2: Clock + Glance
 **Goal:** Ship the primary surface — what users see 95% of the time.
 **Completed:**

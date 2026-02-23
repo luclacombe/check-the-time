@@ -75,6 +75,7 @@ Layer 4: OVERLAYS    — Translucent pills, headers, nav controls
 - Content clip: `RoundedRectangle(cornerRadius: 14)` on the root view — this is the anchor for all concentric radii
 - Ring path: `RoundedRectangle` at 4pt inset from content edge, 8pt stroke → outer edge at 0pt, inner edge at 8pt
 - Gap: 2pt → board starts at 10pt inset
+- **⚠ Bezel asymmetry (to fix in Sprint 3):** The outer gap (content edge → ring outer edge) is 0pt, but the inner gap (ring inner edge → board) is 2pt. Sprint 3 will equalize these bezels — the ring and board may shift inward slightly, accepting more corner clip on the board in exchange for balanced visual spacing.
 - Board: `300 - 2×10 = 280×280`
 - Square size: `280 / 8 = 35pt`
 - Corner radii follow the concentric formula (see Design Tokens → Concentric Corner Radius Rule)
@@ -121,7 +122,7 @@ The default state. What the user sees 95% of the time.
 
 - Board: 280×280, centered
 - Ring: Gold, filling clockwise from top-center. Unfilled track visible at 15% gray.
-- Tick marks: 4 cardinal points (top-center, right-center, bottom-center, left-center). Small inward-pointing indices. Gold when the ring has passed them, gray otherwise.
+- Tick marks: 4 cardinal points (top-center, right-center, bottom-center, left-center). Rendered **on top of** the ring fill (z-order above the gold fill and gray track) — always visible regardless of ring progress. White foreground for contrast against both gold and gray. Sized for clear legibility at a glance (see `tick.length`, `tick.width` tokens).
 - AM: White's perspective (rank 1 at bottom). PM: Board flipped (rank 8 at bottom).
 - **No text. No labels. No visible affordances.** Pure ambient display.
 
@@ -575,8 +576,8 @@ Tokens marked ★ are derived from the concentric rule above — do not set them
 | `header.height` | 28pt | Top header bar (Detail face) |
 | `overlay.header` | 36pt | Translucent header on board (Puzzle/Replay) |
 | `overlay.nav` | 32pt | Navigation pill at bottom (Replay) |
-| `tick.length` | 4pt | Cardinal tick mark length (inward from ring) |
-| `tick.width` | 1.5pt | Cardinal tick mark stroke |
+| `tick.length` | 6pt | Cardinal tick mark length (spans ring, rendered on top of fill) |
+| `tick.width` | 2pt | Cardinal tick mark stroke |
 
 ### Animations
 
@@ -811,20 +812,22 @@ Tasks:
 
 ✓ **Acceptance:** Clock displays correctly with 8pt ring and concentric corner radii (14pt outer → 10pt ring → 4pt board). Hovering shows time + chess context in a frosted pill. Ring ticks smoothly.
 
-### Sprint 3 — Detail Face
+### Sprint 3 — Detail Face ✓
 **Goal:** Ship the info panel with proper information hierarchy.
 
 Tasks:
-- [ ] Detail face layout: board 196×196 centered, metadata below, header with back + gear
-- [ ] Board scale animation: 280→196 with 0.3s spring on transition from Clock
-- [ ] Ring dims to 30% opacity in Detail face
-- [ ] CTA overlay on board bottom: "▶ Play" / "✓ Solved · Review" / "✗ · Review"
-- [ ] Player names: full names formatted via `PlayerNameFormatter`, no "White:"/"Black:" labels
-- [ ] Event line: cleaned up format ("Titled Tuesday · Aug 2023")
-- [ ] Remove: Round number, AM/PM text, mini board duplicate
-- [ ] Gear icon placeholder (top-right, inactive in v1.0)
+- [x] Fix bezel consistency: the outer gap (content edge → ring outer edge) is currently 0pt while the inner gap (ring inner edge → board) is 2pt. Audit `ring.inset`, `ring.stroke`, and `bezel.gap` values so both gaps are visually equal. Accepted trade-off: the board may shrink slightly and corner clips increase. Update `DesignTokens.swift` dimensions, the Layer Model math, and the concentric radius derivation to match.
+- [x] Fix tick marks: increase size (`tick.length` → 6pt, `tick.width` → 2pt), render on top of ring fill (z-order above gold fill layer), and switch to white foreground for contrast. Tick marks must always be visible regardless of ring progress.
+- [x] Detail face layout: board 196×196 centered, metadata below, header with back + gear
+- [x] Board scale animation: 280→196 with 0.3s spring on transition from Clock
+- [x] Ring dims to 30% opacity in Detail face
+- [x] CTA overlay on board bottom: "▶ Play" / "✓ Solved · Review" / "✗ · Review"
+- [x] Player names: full names formatted via `PlayerNameFormatter`, no "White:"/"Black:" labels
+- [x] Event line: cleaned up format ("Titled Tuesday · Aug 2023")
+- [x] Remove: Round number, AM/PM text, mini board duplicate
+- [x] Gear icon placeholder (top-right, inactive in v1.0)
 
-**Acceptance:** Clicking the clock shows game info with properly formatted names, clean hierarchy, and working CTA.
+✓ **Acceptance:** Bezels are visually balanced (equal gaps on both sides of the ring). Tick marks are clearly visible at all times, even when the gold fill passes them. Clicking the clock shows game info with properly formatted names, clean hierarchy, and working CTA.
 
 ### Sprint 4 — Puzzle Face
 **Goal:** Ship the interactive puzzle in a fixed 300×300 square.
