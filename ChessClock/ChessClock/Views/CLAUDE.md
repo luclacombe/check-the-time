@@ -1,44 +1,52 @@
 # Views/
 
-All views are pure SwiftUI. They receive data as constructor arguments.
+All views are pure SwiftUI. They receive data as constructor arguments. No Combine, no timers.
 
 ## Composition Hierarchy
 
 ```
-ClockView (holds ClockService + GuessService)
-  ├── [default] BoardView(fen:) + MinuteSquareRingView overlay
-  │     └── Hover hint ("Click for more info") + tap → showInfo
-  └── [on tap] InfoPanelView(state:guessService:onBack:)
-        ├── BoardView preview
-        ├── Game metadata (white, black, event, year, round)
-        └── "Guess Move" button → GuessMoveWindowManager.shared.open(...)
-
-GuessMoveWindowManager → NSPanel → GuessMoveView(state:guessService:)
-  ├── [not guessed] InteractiveBoardView(fen:isFlipped:onMove:)
-  │     └── PromotionPickerView overlay (when promotion needed)
-  └── [on move] MoveResultView(guess:game:onDismiss:) overlay
+ClockView (holds ClockService + GuessService, manages ViewMode)
+  ├── [.clock]  BoardView(fen:isFlipped:) + MinuteBezelView overlay
+  │               └── hover → Glance face (blurred board + GlassPillView); tap → ViewMode = .info
+  ├── [.info]   InfoPanelView(state:guessService:onBack:onGuess:)
+  │               ├── BoardView (tappable, CTA bar overlay at bottom)
+  │               └── GameInfoView(game:) — player names, event, date, round
+  ├── [.puzzle] GuessMoveView(state:guessService:onBack:onReplay:)
+  │               ├── InteractiveBoardView or BoardView (depending on turn)
+  │               ├── wrongFlashOverlay / successOverlay / failedOverlay (inline ZStack)
+  │               └── PromotionPickerView overlay (when pawn reaches back rank)
+  └── [.replay] GameReplayView(game:hour:isFlipped:onBack:)
+                  ├── BoardView + MoveArrowView overlay (fades in/out per move)
+                  └── navButtons (⏮ ← ⦿ → ⏭) + keyboard ← / →
 ```
 
-`ClockView` is fixed at 312×312 (board + 12pt padding on each side). On first launch it overlays `OnboardingOverlayView`.
+`ClockView` is fixed at 300×300, clipped to 14pt rounded rect. On first launch it overlays `OnboardingOverlayView`.
 
 ## File Notes
 
-**ClockView.swift** — Root view. Two modes: `.clock` (board + ring) and `.info` (InfoPanelView). Hover shows "Click for more info" overlay. Tap switches to info mode. Owns `@StateObject GuessService`.
+**ClockView.swift** — Root view. Owns `@StateObject GuessService`. `WindowObserver` (NSViewRepresentable) resets mode to `.clock` on popover reopen. Root ZStack clipped to `ChessClockRadius.outer` (14pt). Clock face hover triggers Glance face: board blurs (8pt Gaussian), centered `GlassPillView` shows formatted time + "Mate in N". Ring remains un-blurred and ticking.
 
-**BoardView.swift** — 8×8 grid via nested `ForEach`. Lichess colors. `isFlipped` inverts row order for PM (Black's perspective).
+**BoardView.swift** — 8×8 grid via nested `ForEach`. Lichess colors: light `#F0D9B5`, dark `#B58863`. `isFlipped` inverts row order for PM (Black's perspective). No interaction — pure display.
 
-**InteractiveBoardView.swift** — Extends BoardView with piece interaction. Single `DragGesture` on the container maps touch coordinates to squares. Tap gesture on individual squares for click-select. Selected piece and legal destinations are highlighted. Promotion picker appears as an overlay when a pawn reaches the back rank. Calls `onMove` with the completed `ChessMove`.
+**InteractiveBoardView.swift** — Extends the board layout with piece interaction. Single `DragGesture(minimumDistance: 6)` on the container maps touch coordinates to squares. Separate tap gesture per square for click-select. Selected piece highlighted in yellow. Legal destinations shown as black dots (empty squares) or ring overlay (captures). Promotion picker appears as an overlay when a pawn reaches the back rank. Calls `onMove(ChessMove)` with the completed move.
 
-**InfoPanelView.swift** — Shows mini board preview + game metadata + "Guess Move" button. Shows result badge if already guessed.
+**InfoPanelView.swift** — Tap-mode info panel. Shows `BoardView` as a tappable card with a bottom CTA bar (result badge left + AM/PM badge + "Play Puzzle"/"Review" right). Below board: `GameInfoView`. Player ELO shown inline in parentheses.
 
-**GuessMoveView.swift** — The full puzzle screen in the floating window. If already guessed, shows the static board and a tap-for-result badge; the interactive board is replaced. Calls `GuessService.recordGuess` on move.
+**GameInfoView.swift** — Reusable metadata display. Shows White/Black player rows (name + ELO right-aligned), Event, Date (month + year if available), optional Round. Used inside `InfoPanelView`.
 
-**MoveResultView.swift** — Full-screen overlay shown after a guess. Shows correct/incorrect, the actual move, game info, and a live countdown to the next puzzle.
+**GuessMoveView.swift** — Inline multi-move puzzle (no floating window). Shows header (back + game title), context line ("N AM — N Moves to Checkmate — Play as White/Black"), 3-dot tries indicator, and either `InteractiveBoardView` (user's turn) or static `BoardView` (opponent animating). Three inline result overlays:
+- `wrongFlashOverlay` — xmark + "Not that move", dismisses after 1.2s
+- `successOverlay` — checkmark + "Solved!" + try count + stats + "Review Game"/"Close" (buttons appear after 0.5s delay)
+- `failedOverlay` — xmark + "Not solved" + solution moves + stats + "Review Game"/"Close"
 
-**PromotionPickerView.swift** — Overlay with 4 piece buttons (Q, R, B, N). Calls `onPick(PieceType)`.
+**GameReplayView.swift** — Full game replay. Pre-computes all positions via `computeAllPositions(game:)` using `ChessRules.apply`. Position timeline: posIndex 0 = starting position, posIndex N = checkmate. Zone banner ("Game context" / "Puzzle start" / "Solution" / "Checkmate") is color-coded. `MoveArrowView` overlay fades in/out. Keyboard ← / → navigation via `onMoveCommand`.
 
-**OnboardingOverlayView.swift** — First-launch explanation: board = 1 move before checkmate, ring = minutes, new puzzle every hour, tap to access info/guess.
+**MoveArrowView.swift** — Fills an amber shaft-and-arrowhead arrow from one square center to another. Internal static helpers `squareCenter(sq:squareSize:isFlipped:)` and `arrowPath(from:to:squareSize:)` are `internal` (not `private`) for testability. Pending deletion in TODO.md S1-8 (to be replaced by highlighted squares).
+
+**MinuteSquareRingView.swift** — Clockwise square-perimeter ring. Two types: `MinuteRingShape: Shape` (the custom path) and `MinuteSquareRingView` (the view). Amber stroke `#FFC100`, 5pt wide, square lineCap. `progress = minute / 60.0`. To be replaced by `MinuteBezelView` in TODO.md S1-4/S1-6.
+
+**PromotionPickerView.swift** — Centered overlay with 4 piece buttons (Q, R, B, N) in a horizontal row. Calls `onPick(PieceType)`.
+
+**OnboardingOverlayView.swift** — First-launch explanation overlay. Shown once; `OnboardingService.dismissOnboarding()` sets a `UserDefaults` flag. Dismiss button reads "Got it".
 
 **PieceView.swift** — `Image(piece.imageName).resizable().scaledToFit()`.
-
-**MinuteSquareRingView.swift** — Clockwise square-perimeter ring. Gold stroke, 5pt wide, square lineCap.

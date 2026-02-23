@@ -55,53 +55,42 @@ struct ClockView: View {
             }
         }
         .frame(width: 300, height: 300)
+        .clipShape(RoundedRectangle(cornerRadius: ChessClockRadius.outer))
         // Reset to clock whenever this MenuBarExtra window becomes key (popover reopens)
         .background(WindowObserver { viewMode = .clock })
     }
 
-    // MARK: - Board + ring (clock mode)
+    // MARK: - Board + ring (clock / glance)
 
     private var boardWithRing: some View {
         ZStack {
-            // Layer 1: minute bezel ring (fills 300×300)
+            // Layer 1: minute bezel ring — always visible, never blurred
             MinuteBezelView(minute: clockService.state.minute)
 
-            // Layer 2: chess board (280×280, centered — 10pt inset per side)
+            // Layer 2: chess board (280×280) — blurs on hover (Glance face)
             BoardView(fen: clockService.state.fen, isFlipped: clockService.state.isFlipped)
                 .frame(width: 280, height: 280)
+                .blur(radius: isHovering ? 8 : 0)
+                .animation(.easeInOut(duration: isHovering ? 0.2 : 0.15), value: isHovering)
 
-            // Layer 3: hover overlay
-            if isHovering {
-                VStack {
-                    Spacer()
-                    Text(hoverText(for: clockService.state))
-                        .font(.caption2)
-                        .fontWeight(.medium)
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(Color.black.opacity(0.65))
-                        .cornerRadius(6)
-                        .padding(.bottom, 8)
+            // Layer 3: glance pill — centered, fades in on hover
+            GlassPillView {
+                VStack(spacing: ChessClockSpace.xs) {
+                    Text("\(clockService.state.hour):\(String(format: "%02d", clockService.state.minute)) \(clockService.state.isAM ? "AM" : "PM")")
+                        .font(ChessClockType.display)
+                        .foregroundStyle(.primary)
+                    Text("Mate in \(clockService.state.hour)")
+                        .font(.system(size: 12, weight: .regular))
+                        .foregroundStyle(.secondary)
                 }
             }
+            .opacity(isHovering ? 1 : 0)
+            .animation(.easeInOut(duration: isHovering ? 0.15 : 0.1), value: isHovering)
         }
         .frame(width: 300, height: 300)
         .contentShape(Rectangle())
         .onHover { isHovering = $0 }
         .onTapGesture { viewMode = .info }
-    }
-
-    // MARK: - Hover text (P5.1)
-
-    static func hoverText(hour: Int, isAM: Bool) -> String {
-        let period = isAM ? "AM" : "PM"
-        let moves = hour == 1 ? "Mate in 1" : "\(hour) Moves to Checkmate"
-        return "\(hour) \(period) — \(moves)"
-    }
-
-    private func hoverText(for state: ClockState) -> String {
-        Self.hoverText(hour: state.hour, isAM: state.isAM)
     }
 }
 
