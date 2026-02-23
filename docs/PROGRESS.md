@@ -5,6 +5,41 @@
 
 ---
 
+## 2026-02-23 — Sprint 3.9: Visual Refinement
+**Goal:** Refine ring animation (traveling pulses), ring base appearance (glass tube), info panel composition, and tick mark styling.
+**Completed:**
+- S3.9-1 DesignTokens — ChessClockPulse, ChessClockTube, ChessClockCTADetail enums; boardDetail 176→164; shimmerMinOpacity + anim.shimmer removed
+- S3.9-2 MinuteBezelView — FilledRingTrack parameterized; three glass tube overlay layers; tick marks simplified to gradient bars
+- S3.9-3 MinuteBezelView — RingCenterlinePath shape; TimelineView-driven dual traveling pulses with layered glow
+- S3.9-4 InfoPanelView — flanking icons, 164pt board, glassy player indicators, split name/ELO, CTA with detail tokens
+- S3.9-5 DESIGN.md — Face 1 ticks, Face 3 layout, token tables updated
+- S3.9-6 Glass audit — GlassPillView specular highlight + stroke 0.30; CTA pill inner stroke
+**Blocked / Skipped:** None
+**Agents deployed:** 3 (Agent A: S3.9-2 + S3.9-3, Agent B: S3.9-4, Agent C: S3.9-5) + Senior: S3.9-1, S3.9-6
+**Next session:** Run `/plan-sprint` to set up Sprint 4 (Puzzle Face)
+**Notes:**
+- 6 commits: c044af5 (tokens), 24fc694 (tube+ticks), a12d36a (pulses), 9f05dca (info panel), 326adc8 (docs), 96fe5d1 (glass audit)
+- Agent A ran S3.9-2 and S3.9-3 sequentially; Agent B (S3.9-4) and Agent C (S3.9-5) ran in parallel
+- BUILD SUCCEEDED after all commits integrated
+
+---
+
+## 2026-02-23 — Sprint 3.9 Planning
+**Goal:** Plan Sprint 3.9 (Visual Refinement) — polish sprint before Sprint 4 (Puzzle Face)
+**Completed:**
+- Ran `/plan-sprint 3.9` — decomposed into 6 tasks (S3.9-1 through S3.9-6)
+- Researched Liquid Glass techniques, traveling pulse animations, glass tube effects
+- Added Sprint 3.9 section to DESIGN.md with full spec (ring pulses, glass tube, info panel layout, tick marks, glass audit)
+- Updated TODO.md with 6 tasks, dependency graph, and acceptance criteria
+**Blocked / Skipped:** None
+**Next session:** Run `/sprint` to execute Sprint 3.9
+**Notes:**
+- Sprint 3.9 addresses: flat ring shimmer → traveling pulses, flat gold bar → glass tube, crowded info panel → flanking icons + player indicators, inconsistent ticks → gradient bars, glass coherence audit
+- Dependency chain: S3.9-1 → (S3.9-2 + S3.9-4 + S3.9-5 parallel) → S3.9-3 → S3.9-6
+- 3 agents recommended for parallel execution
+
+---
+
 ## 2026-02-23 — Sprint 3.75: Ring Geometry + Detail Face Fix
 **Goal:** Fix ring rendering artifacts (lineCap bleed, corner gaps, flat appearance, weak shimmer) and repair Detail face layout (clipped buttons, overflowing text, visible ring).
 **Completed:**

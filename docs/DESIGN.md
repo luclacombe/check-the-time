@@ -862,7 +862,7 @@ Tasks:
 
 ✓ **Acceptance:** Ring uses filled shape architecture with gradient, no lineCap bleed or corner gaps. Shimmer wider and faster. Detail face fits within 300pt with no clipping. Ring fully hidden in detail. Board has subtle edge definition.
 
-### Sprint 3.9 — Visual Refinement
+### Sprint 3.9 — Visual Refinement ✓
 **Goal:** Refine ring animation (traveling pulses), ring base appearance (glass tube), info panel composition, and tick mark styling.
 
 This is a polish sprint addressing visual issues identified after Sprint 3.75. All changes are cosmetic — no new features, no new faces.
