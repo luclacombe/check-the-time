@@ -1,7 +1,8 @@
 import SwiftUI
 
 /// Shown when the user taps the board in the main clock view.
-/// Displays game metadata, result badge, and a "Guess Move" / "View Result" button.
+/// The board is a tappable card with a bottom overlay showing the CTA + result badge.
+/// Below the board: game metadata.
 struct InfoPanelView: View {
     let state: ClockState
     @ObservedObject var guessService: GuessService
@@ -26,35 +27,68 @@ struct InfoPanelView: View {
             }
             .padding(.bottom, 10)
 
-            // Mini board preview
-            BoardView(fen: state.fen, isFlipped: state.isFlipped)
-                .frame(maxWidth: .infinity)
-                .aspectRatio(1, contentMode: .fit)
-                .overlay(alignment: .bottomTrailing) {
-                    Text(state.isAM ? "AM" : "PM")
-                        .font(.caption2.weight(.bold))
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 5)
-                        .padding(.vertical, 2)
-                        .background(Color.black.opacity(0.55))
-                        .cornerRadius(4)
-                        .padding(4)
-                }
+            // Board card — tappable, with bottom CTA overlay
+            boardCard
 
             Spacer(minLength: 10)
 
             // Game metadata
             gameMetadata
-
-            Spacer(minLength: 12)
-
-            // Guess Move / View Result button
-            puzzleButton
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    // MARK: - Sub-views
+    // MARK: - Board card
+
+    private var boardCard: some View {
+        BoardView(fen: state.fen, isFlipped: state.isFlipped)
+            .frame(maxWidth: .infinity)
+            .aspectRatio(1, contentMode: .fit)
+            .overlay(alignment: .bottom) {
+                ctaBar
+            }
+            .contentShape(Rectangle())
+            .onTapGesture { onGuess() }
+    }
+
+    private var ctaBar: some View {
+        HStack(spacing: 6) {
+            // Result badge (shown when puzzle has been played)
+            if guessService.hasResult, let result = guessService.result {
+                HStack(spacing: 4) {
+                    Image(systemName: result.succeeded ? "checkmark.circle.fill" : "xmark.circle.fill")
+                        .foregroundColor(result.succeeded ? .green : .red)
+                        .font(.caption2)
+                    Text(result.succeeded
+                         ? "Solved (try \(result.triesUsed))"
+                         : "Not solved")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundColor(.white)
+                }
+            }
+
+            Spacer()
+
+            // AM/PM badge
+            Text(state.isAM ? "AM" : "PM")
+                .font(.caption2.weight(.bold))
+                .foregroundColor(.white.opacity(0.7))
+
+            // CTA
+            HStack(spacing: 3) {
+                Image(systemName: "play.fill")
+                    .font(.caption2)
+                Text(guessService.hasResult ? "Review" : "Play Puzzle")
+                    .font(.caption.weight(.semibold))
+            }
+            .foregroundColor(.white)
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 5)
+        .background(Color.black.opacity(0.65))
+    }
+
+    // MARK: - Game metadata
 
     private var gameMetadata: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -80,43 +114,6 @@ struct InfoPanelView: View {
             Text(value)
                 .lineLimit(2)
                 .minimumScaleFactor(0.85)
-        }
-    }
-
-    private var puzzleButton: some View {
-        Group {
-            if guessService.hasResult {
-                VStack(spacing: 6) {
-                    resultBadge
-                    Button("View Result") { onGuess() }
-                        .buttonStyle(.bordered)
-                        .controlSize(.small)
-                }
-            } else {
-                Button {
-                    onGuess()
-                } label: {
-                    Label("Guess Move", systemImage: "chess.king.fill")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.regular)
-            }
-        }
-    }
-
-    private var resultBadge: some View {
-        Group {
-            if let result = guessService.result {
-                HStack(spacing: 6) {
-                    Image(systemName: result.succeeded ? "checkmark.circle.fill" : "xmark.circle.fill")
-                        .foregroundColor(result.succeeded ? .green : .red)
-                    Text(result.succeeded
-                         ? "Solved (try \(result.triesUsed))"
-                         : "Not solved")
-                        .font(.caption.weight(.semibold))
-                }
-            }
         }
     }
 

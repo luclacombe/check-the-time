@@ -32,7 +32,11 @@ struct PuzzleEngine {
     // MARK: - Computed properties
 
     /// The index (into game.positions) where this puzzle starts.
-    var startPositionIndex: Int { hour - 1 }
+    /// Skips to the mating-side position so hour N = exactly N user moves.
+    /// positions[0] = mate in 1 (mating side to move).
+    /// positions[2] = mate in 2 (mating side to move, opponent at positions[1]).
+    /// positions[2*(N-1)] = mate in N.
+    var startPositionIndex: Int { (hour - 1) * 2 }
 
     /// FEN of the current board position.
     var currentFEN: String { game.positions[currentPositionIndex] }
@@ -53,7 +57,7 @@ struct PuzzleEngine {
     init(game: ChessGame, hour: Int) {
         self.game = game
         self.hour = hour
-        self.currentPositionIndex = hour - 1
+        self.currentPositionIndex = (hour - 1) * 2
     }
 
     // MARK: - Public API

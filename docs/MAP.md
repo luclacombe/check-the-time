@@ -39,6 +39,22 @@ See `docs/archive/TODO-done-v0.4.0.md` for full task breakdown.
 
 ---
 
+## v0.5.0 — Shipped ✓
+
+Info panel refresh and full game replay viewer.
+
+Key changes:
+- **Board-as-CTA**: Tapping the board (not a separate button) enters the puzzle or review flow. A bottom overlay bar shows the AM/PM badge, result badge (if played), and a "Play Puzzle" / "Review" label.
+- **Game Replay viewer**: `GameReplayView` — step through the complete game from move 1 to checkmate. Coloured zone banner ("Game context" / "Puzzle start" / "Solution") updates as you navigate. Move arrow (amber shaft + arrowhead) shows which move was played at each position.
+- **"Review Game" button**: Success and failed puzzle overlays now offer a "Review Game" button (fades in after 0.5 s) alongside "Close". Tapping opens the replay viewer at the puzzle start position.
+- **`allMoves` data field**: `games.json` extended with the full UCI move list from game start to checkmate (~84 moves average). The Python pipeline (`build_json.py`) was updated accordingly.
+- **Full game navigation**: ⏮=game start, ←=step back, [⦿]=puzzle start, →=step forward, ⏭=checkmate. Keyboard ← / → also work.
+- **40 tests**: `GameReplayViewTests.swift` covers zone classification, move labels, position counter, navigation clamping, arrow geometry, zone label text, and `computeAllPositions` correctness.
+
+See `docs/archive/TODO-done-v0.5.0.md` for full task breakdown.
+
+---
+
 ## NEXT VERSION — v1.0.0 and beyond
 
 These are significant features that each deserve their own scoping and planning session.

@@ -3,7 +3,7 @@ import SwiftUI
 
 // MARK: - View mode
 
-private enum ViewMode { case clock, info, puzzle }
+private enum ViewMode { case clock, info, puzzle, replay }
 
 // MARK: - ClockView
 
@@ -35,6 +35,14 @@ struct ClockView: View {
                 GuessMoveView(
                     state: clockService.state,
                     guessService: guessService,
+                    onBack: { viewMode = .info },
+                    onReplay: { viewMode = .replay }
+                )
+            case .replay:
+                GameReplayView(
+                    game: clockService.state.game,
+                    hour: clockService.state.hour,
+                    isFlipped: clockService.state.isFlipped,
                     onBack: { viewMode = .info }
                 )
             }
@@ -47,7 +55,7 @@ struct ClockView: View {
             }
         }
         .padding(12)
-        .frame(width: 312, height: viewMode == .puzzle ? 500 : 332)
+        .frame(width: 312, height: (viewMode == .puzzle || viewMode == .replay) ? 500 : 332)
         // Reset to clock whenever this MenuBarExtra window becomes key (popover reopens)
         .background(WindowObserver { viewMode = .clock })
     }

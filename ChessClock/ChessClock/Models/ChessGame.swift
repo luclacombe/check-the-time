@@ -11,11 +11,16 @@ struct ChessGame: Codable {
     let round: String?       // e.g. "3", nil if not in PGN or unknown
     let mateBy: String       // "white" or "black" — who delivers the final checkmate
     let finalMove: String    // UCI notation of the checkmate move, e.g. "e7e8q"
-    let moveSequence: [String]   // 12 UCIs; moveSequence[i] is the move from positions[i]; moveSequence[0] == finalMove
-    let positions: [String]  // exactly 12 FEN strings
-    // positions[0] = board position 1 move before final checkmate  → the puzzle position
-    // positions[i] = board position (i+1) moves before checkmate
-    // positions[11] = board position 12 moves before checkmate
+    let moveSequence: [String]   // 23 UCIs; moveSequence[i] is the move from positions[i]; moveSequence[0] == finalMove
+    let positions: [String]  // exactly 23 FEN strings
+    // positions[0]  = board 1 move before checkmate  → clock hour 1 / puzzle mate-in-1
+    // positions[i]  = board (i+1) moves before checkmate
+    // positions[11] = board 12 moves before checkmate → clock hour 12
+    // positions[2*(N-1)] = start of puzzle for hour N (always mating side to move)
+
+    let allMoves: [String]   // All UCI moves from game start to checkmate (inclusive).
+    // allMoves[0] = first move of game; allMoves.last == finalMove
+    // Used by GameReplayView to replay the full game from the starting position.
 
     init(white: String, black: String, whiteElo: String, blackElo: String,
          tournament: String, year: Int,
@@ -23,6 +28,7 @@ struct ChessGame: Codable {
          mateBy: String = "white",
          finalMove: String = "",
          moveSequence: [String] = [],
+         allMoves: [String] = [],
          positions: [String]) {
         self.white = white
         self.black = black
@@ -35,6 +41,7 @@ struct ChessGame: Codable {
         self.mateBy = mateBy
         self.finalMove = finalMove
         self.moveSequence = moveSequence
+        self.allMoves = allMoves
         self.positions = positions
     }
 }
@@ -54,6 +61,7 @@ extension ChessGame {
             mateBy: (try c.decodeIfPresent(String.self, forKey: .mateBy)) ?? "white",
             finalMove: (try c.decodeIfPresent(String.self, forKey: .finalMove)) ?? "",
             moveSequence: (try c.decodeIfPresent([String].self, forKey: .moveSequence)) ?? [],
+            allMoves: (try c.decodeIfPresent([String].self, forKey: .allMoves)) ?? [],
             positions: try c.decode([String].self, forKey: .positions)
         )
     }

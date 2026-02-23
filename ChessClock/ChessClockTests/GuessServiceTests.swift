@@ -10,8 +10,11 @@ final class GuessServiceTests: XCTestCase {
 
     private let wFEN = "8/8/8/8/8/8/8/8 w - - 0 1"
     private let bFEN = "8/8/8/8/8/8/8/8 b - - 0 1"
-    private let moveSeq = ["a1a2","a2a3","a3a4","a4a5","a5a6","a6a7",
-                           "a7a8","a8b8","b8b7","b7b6","b6b5","b5b4"]
+    private let moveSeq = [
+        "a1a2","b1b2","c1c2","d1d2","e1e2","f1f2","g1g2","h1h2",
+        "a2a3","b2b3","c2c3","d2d3","e2e3","f2f3","g2g3","h2h3",
+        "a3a4","b3b4","c3c4","d3d4","e3e4","f3f4","g3g4"
+    ]
 
     // Retain services for the full test lifetime to avoid @MainActor deinit crashes.
     private var clockService: ClockService!
@@ -38,7 +41,7 @@ final class GuessServiceTests: XCTestCase {
     }
 
     private func makeGame() -> ChessGame {
-        let positions = (0..<12).map { i in i % 2 == 0 ? wFEN : bFEN }
+        let positions = (0..<23).map { i in i % 2 == 0 ? wFEN : bFEN }
         return ChessGame(
             white: "W", black: "B", whiteElo: "?", blackElo: "?",
             tournament: "T", year: 2024,
@@ -142,11 +145,11 @@ final class GuessServiceTests: XCTestCase {
         XCTAssertTrue(service.hasResult)
     }
 
-    // MARK: - Test 10: hour 2 auto-plays opponent first
+    // MARK: - Test 10: hour 2 user goes first (no initial auto-play)
 
-    func testStartPuzzle_hour2_returnsOneAutoPlay() {
-        // Hour 2: starts at positions[1] = bFEN (opponent first for white-mates game)
+    func testStartPuzzle_hour2_returnsZeroAutoPlays() {
+        // Hour 2: starts at positions[(2-1)*2] = positions[2] = wFEN (user/mating side goes first)
         let autoPlays = service.startPuzzle(game: makeGame(), hour: 2)
-        XCTAssertEqual(autoPlays?.count, 1, "Hour 2 white-mates: opponent goes first → 1 auto-play")
+        XCTAssertEqual(autoPlays?.count, 0, "Hour 2 white-mates: user goes first at positions[2] → no initial auto-play")
     }
 }

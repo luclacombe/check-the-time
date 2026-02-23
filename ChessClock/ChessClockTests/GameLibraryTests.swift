@@ -13,17 +13,17 @@ final class GameLibraryTests: XCTestCase {
 
     // MARK: - ChessGame structural invariants across all bundle games
 
-    func testAllGamesHaveExactly12Positions() {
+    func testAllGamesHaveExactly23Positions() {
         for game in GameLibrary.shared.games {
-            XCTAssertEqual(game.positions.count, 12,
-                           "\(game.white) vs \(game.black) (\(game.year)) has \(game.positions.count) positions, expected 12")
+            XCTAssertEqual(game.positions.count, 23,
+                           "\(game.white) vs \(game.black) (\(game.year)) has \(game.positions.count) positions, expected 23")
         }
     }
 
-    func testAllGamesHaveMoveSequenceOfLength12() {
+    func testAllGamesHaveMoveSequenceOfLength23() {
         for game in GameLibrary.shared.games {
-            XCTAssertEqual(game.moveSequence.count, 12,
-                           "\(game.white) vs \(game.black) (\(game.year)) has \(game.moveSequence.count) moveSequence entries, expected 12")
+            XCTAssertEqual(game.moveSequence.count, 23,
+                           "\(game.white) vs \(game.black) (\(game.year)) has \(game.moveSequence.count) moveSequence entries, expected 23")
         }
     }
 

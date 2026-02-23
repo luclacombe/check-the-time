@@ -5,7 +5,7 @@ import chess.pgn
 
 INPUT = os.path.join(os.path.dirname(__file__), "curated_games.pgn")
 OUTPUT = os.path.join(os.path.dirname(__file__), "games.json")
-N = 12
+N = 23
 
 MONTHS = {
     "01": "January", "02": "February", "03": "March",
@@ -23,6 +23,10 @@ def get_fens_before_checkmate(game_node, n=12):
     for move in moves:
         board.push(move)
     if not board.is_checkmate():
+        return None
+
+    # Games must have enough moves for the deepest puzzle (hour 12 needs 23 total moves)
+    if total < n:
         return None
 
     # board.turn is the mated side; the delivering side is the opposite
@@ -52,7 +56,10 @@ def get_fens_before_checkmate(game_node, n=12):
         idx = total - 1 - i
         move_sequence.append(moves[idx].uci() if idx >= 0 else "")
 
-    return result, mate_by, final_move_uci, move_sequence
+    # All moves from game start to checkmate (inclusive), for full-game replay
+    all_moves = [m.uci() for m in moves]
+
+    return result, mate_by, final_move_uci, move_sequence, all_moves
 
 
 records = []
@@ -78,7 +85,7 @@ with open(INPUT, encoding="utf-8", errors="replace") as f:
             skipped += 1
             continue
 
-        positions, mate_by, final_move_uci, move_sequence = result
+        positions, mate_by, final_move_uci, move_sequence, all_moves = result
 
         h = game.headers
         date_str = h.get("Date", "0.??.??")
@@ -117,19 +124,20 @@ with open(INPUT, encoding="utf-8", errors="replace") as f:
             "finalMove": final_move_uci,
             "moveSequence": move_sequence,
             "positions": positions,
+            "allMoves": all_moves,
         })
 
 with open(OUTPUT, "w", encoding="utf-8") as f:
     json.dump(records, f, ensure_ascii=False, indent=2)
 
-all_12 = all(len(g["positions"]) == N for g in records)
-all_move_seq_12 = all(len(g["moveSequence"]) == 12 for g in records)
+all_n_positions = all(len(g["positions"]) == N for g in records)
+all_n_move_seq = all(len(g["moveSequence"]) == N for g in records)
 all_move_seq_match = all(g["moveSequence"][0] == g["finalMove"] for g in records if g["finalMove"])
-print(f"All have 12 moveSequence: {all_move_seq_12}")
+print(f"All have {N} positions: {all_n_positions}")
+print(f"All have {N} moveSequence: {all_n_move_seq}")
 print(f"All moveSequence[0]==finalMove: {all_move_seq_match}")
 print(f"Games written: {len(records)}")
 print(f"Games skipped: {skipped}")
-print(f"All have {N} positions: {all_12}")
 if records:
     s = records[0]
     print(f"Sample: {s['white']} vs {s['black']} ({s['year']}) month={s['month']} round={s['round']} mateBy={s['mateBy']}")

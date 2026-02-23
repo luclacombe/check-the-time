@@ -5,6 +5,7 @@ struct GuessMoveView: View {
     let state: ClockState
     @ObservedObject var guessService: GuessService
     let onBack: () -> Void
+    let onReplay: () -> Void
 
     // Opponent animation state
     @State private var opponentMoveText: String? = nil  // non-nil while showing "Opponent played X"
@@ -14,6 +15,9 @@ struct GuessMoveView: View {
     @State private var showWrongFlash: Bool = false
     @State private var showSuccess: Bool = false
     @State private var showFailed: Bool = false
+
+    // Delayed "Review Game" button reveal
+    @State private var showReviewButton: Bool = false
 
     var body: some View {
         ZStack {
@@ -32,6 +36,8 @@ struct GuessMoveView: View {
             if showFailed     { failedOverlay }
         }
         .onAppear { initializePuzzle() }
+        .onChange(of: showSuccess) { if $0 { scheduleReviewButton() } }
+        .onChange(of: showFailed)  { if $0 { scheduleReviewButton() } }
     }
 
     // MARK: - Sub-views
@@ -178,8 +184,16 @@ struct GuessMoveView: View {
 
                 statsLine
 
-                Button("Close") { onBack() }
-                    .buttonStyle(.borderedProminent)
+                if showReviewButton {
+                    VStack(spacing: 8) {
+                        Button("Review Game") { onReplay() }
+                            .buttonStyle(.borderedProminent)
+                        Button("Close") { onBack() }
+                            .buttonStyle(.plain)
+                            .foregroundColor(.white.opacity(0.8))
+                    }
+                    .transition(.opacity)
+                }
             }
             .padding(24)
             .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20))
@@ -212,8 +226,16 @@ struct GuessMoveView: View {
 
                 statsLine
 
-                Button("Close") { onBack() }
-                    .buttonStyle(.borderedProminent)
+                if showReviewButton {
+                    VStack(spacing: 8) {
+                        Button("Review Game") { onReplay() }
+                            .buttonStyle(.borderedProminent)
+                        Button("Close") { onBack() }
+                            .buttonStyle(.plain)
+                            .foregroundColor(.white.opacity(0.8))
+                    }
+                    .transition(.opacity)
+                }
             }
             .padding(24)
             .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20))
@@ -229,6 +251,12 @@ struct GuessMoveView: View {
     }
 
     // MARK: - Logic
+
+    private func scheduleReviewButton() {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            withAnimation { showReviewButton = true }
+        }
+    }
 
     private func initializePuzzle() {
         guard let autoPlays = guessService.startPuzzle(game: state.game, hour: state.hour) else {

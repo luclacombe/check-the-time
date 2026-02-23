@@ -14,6 +14,7 @@ Instead of showing you digits, Chess Clock shows you a board position from a fam
 - **AM / PM** is encoded in the board orientation: White's perspective (rank 1 at bottom) means AM; Black's perspective (board flipped) means PM.
 - **Tap the board** to see game info: the two players, their ELOs, the tournament, round, and date.
 - **Guess the move** — after tapping, challenge yourself to find the actual checkmate move that won the game.
+- **Replay the full game** — after solving (or failing) the puzzle, step through the entire game from move 1 to checkmate with a move arrow showing what was played at each position.
 
 It's a clock for chess players who'd rather think about positions than read numbers.
 
@@ -27,13 +28,13 @@ It's a clock for chess players who'd rather think about positions than read numb
 
 ## Download
 
-**[⬇ Download ChessClock-0.3.0.dmg](https://github.com/luclacombe/chess-clock/releases/download/v0.3.0/ChessClock-0.3.0.dmg)**
+**[⬇ Download ChessClock-0.5.0.dmg](https://github.com/luclacombe/chess-clock/releases/download/v0.5.0/ChessClock-0.5.0.dmg)**
 
 **Requirements:** macOS 13 (Ventura) or later.
 
 ### Install
 
-1. Download `ChessClock-0.3.0.dmg` from the link above (or the [Releases page](https://github.com/luclacombe/chess-clock/releases))
+1. Download `ChessClock-0.5.0.dmg` from the link above (or the [Releases page](https://github.com/luclacombe/chess-clock/releases))
 2. Open the `.dmg` and drag **ChessClock** to your Applications folder
 3. **First launch:** Right-click the app → **Open** (required — the app is not yet notarized)
 4. The app lives in your menu bar with a ♛ crown icon — no Dock icon
@@ -57,7 +58,10 @@ The board flips. AM shows the position from White's point of view (rank 1 at the
 A new game appears every hour. Games are selected by a per-device seed generated on first launch — every device gets its own unique rotation, but the same game always appears at the same hour on the same device.
 
 ### Guess the Move
-Tap the board to open the info panel, then press **Guess Move** to open an interactive puzzle. The board shows the position one move before the final checkmate. Drag or click pieces to make your move. After guessing, you'll see whether you matched the actual finishing move. One guess per hour — a new puzzle resets at the top of every hour.
+Tap the board to open the info panel, then tap it again (the board itself is the call-to-action) to open an interactive puzzle. The board shows the position a few moves before the final checkmate. Drag or click pieces to make your move. After guessing, you'll see whether you matched the actual finishing move. One guess per hour — a new puzzle resets at the top of every hour.
+
+### Replay the Game
+After completing (or failing) the puzzle, a **Review Game** button appears on the result screen. Tap it to open the full game replay viewer — step backwards to move 1 or forward to checkmate using the navigation buttons or keyboard arrow keys. A colour-coded banner shows whether you're in "Game context" (before the puzzle), "Puzzle start", or "Solution" territory. An amber arrow overlay shows the move played at each position.
 
 ### Keyboard Shortcut
 Press **⌥Space** (Option + Space) from any app to show or hide the clock window without clicking the menu bar.
