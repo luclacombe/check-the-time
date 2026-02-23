@@ -5,6 +5,25 @@
 
 ---
 
+## 2026-02-23 — Sprint 3.75: Ring Geometry + Detail Face Fix
+**Goal:** Fix ring rendering artifacts (lineCap bleed, corner gaps, flat appearance, weak shimmer) and repair Detail face layout (clipped buttons, overflowing text, visible ring).
+**Completed:**
+- S3.75-1 DesignTokens — accentGoldLight/accentGoldDeep, ringGradient, shimmer 1.8s/0.50↔1.0, boardDetail 196→176, ringOuterEdge/ringInnerEdge/shimmerMinOpacity
+- S3.75-2 MinuteBezelView — complete rewrite: FilledRingTrack (even-odd fill) + ProgressWedge mask, gold gradient, .butt lineCap ticks at ring edges
+- S3.75-3 BoardView — 0.5pt dark strokeBorder overlay for ring-board definition
+- S3.75-4 InfoPanelView — 8pt top padding, 20pt header padding, 2pt board spacing, 6pt CTA spacing, reads 176pt token
+- S3.75-5 ClockView — ring opacity 0.0 for .info mode, removed blur
+- S3.75-6 DESIGN.md — all spec changes documented, Sprint 3.75 added to Sprint Plan
+**Blocked / Skipped:** None
+**Agents deployed:** 4 (Agent A: S3.75-2, Agent B: S3.75-3 + S3.75-5, Agent C: S3.75-4) + Senior: S3.75-1, S3.75-6
+**Next session:** Run `/plan-sprint` to set up Sprint 4 (Puzzle Face)
+**Notes:**
+- 5 commits: cc54fff (tokens), 16995a7 (board bevel), 1eb003c (hide ring), a65333b (ring rewrite), 390bb0d (info panel)
+- Phase 1 agents (S3.75-3, S3.75-5) ran in parallel with S3.75-1; Phase 2 agents (S3.75-2, S3.75-4) launched after S3.75-1 committed
+- BUILD SUCCEEDED after all agent commits integrated
+
+---
+
 ## 2026-02-23 — Sprint 3: Detail Face
 **Goal:** Ship the info panel with proper information hierarchy, equalized bezel gaps, and always-visible tick marks.
 **Completed:**

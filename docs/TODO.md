@@ -14,11 +14,30 @@ _Nothing in progress._
 
 ## Backlog
 
-_Empty — next sprint not yet planned._
+_Empty — Sprint 3.75 complete._
 
 ---
 
 ## Done
+
+### Sprint 3.75 — Ring Geometry + Detail Face Fix (2026-02-23)
+
+- [x] **S3.75-1: Update DesignTokens — gradient colors, shimmer amplitude, detail board size** — accentGoldLight/accentGoldDeep, ringGradient, shimmer 1.8s/0.50↔1.0, boardDetail 196→176, ringOuterEdge/ringInnerEdge/shimmerMinOpacity. `cc54fff`
+- [x] **S3.75-2: Rewrite MinuteBezelView — filled ring shape, gradient, enhanced shimmer, flat ticks** — FilledRingTrack (even-odd fill) + ProgressWedge mask, gold gradient, .butt lineCap ticks at ring edges. `a65333b`
+- [x] **S3.75-3: Add board edge bevel to BoardView** — 0.5pt dark strokeBorder overlay for ring-board definition. `16995a7`
+- [x] **S3.75-4: Fix InfoPanelView layout — top padding, reduced board, tighter spacing** — 8pt top padding, 20pt header padding, 2pt board spacing, 6pt CTA spacing. `390bb0d`
+- [x] **S3.75-5: Hide ring completely in Detail face** — Ring opacity 0.0 for .info, removed blur. `1eb003c`
+- [x] **S3.75-6: Update DESIGN.md with Sprint 3.75 spec changes** — All tokens, layout, animation changes documented.
+
+### Sprint 3.5 — Ring Polish + Detail Fix (2026-02-23)
+
+- [x] **S3.5-1: Update DesignTokens — corner radii, ring geometry, tick sizes** — outer 14→18, ring 9→12, board 4→8, ringInset 5→6, bezelGap 1→0, tickLength 6→8, tickWidth 2→2.5, added shimmer animation token.
+- [x] **S3.5-2: Add `second` to ClockState + ClockService** — ClockState gains `second: Int`, ClockService extracts `.second` from date components.
+- [x] **S3.5-3: Rewrite MinuteBezelView — continuous sweep, shimmer, ticks** — Progress now `(minute*60+second)/3600`, linear interpolation per second, shimmer pulse (opacity 0.78↔1.0, 2.5s), tick dark halo for contrast.
+- [x] **S3.5-4: Upgrade GlassPillView — shadow + inner stroke** — Drop shadow + tight shadow + 0.5pt white inner stroke for glass-edge effect.
+- [x] **S3.5-5: Fix InfoPanelView — header, CTA floating pill** — Header gains 16pt padding + 13pt icons + 28×28 tap targets. CTA redesigned as floating capsule pill below board.
+- [x] **S3.5-6: Update ClockView — pass second, detail ring styling** — Passes second to MinuteBezelView, detail ring 20% opacity + 0.5pt blur.
+- [x] **S3.5-7: Update DESIGN.md — spec changes** — All sections updated: radii, dimensions, ring animation, pill, CTA, Sprint 3.5 section added.
 
 ### Sprint 3 — Detail Face (2026-02-23)
 

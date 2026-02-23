@@ -64,18 +64,16 @@ The app content area is exactly **300×300 points**. This never changes.
 Five concentric layers, from outside in:
 
 ```
-Layer 0: CONTENT     — 300×300, clipped to 14pt rounded rect (the outermost shape)
-Layer 1: RING        — 8pt stroke, rounded rect path at 4pt inset
-Layer 2: GAP         — 2pt breathing room (the bezel channel)
-Layer 3: BOARD       — 280×280, 8×8 grid, 35pt squares
-Layer 4: OVERLAYS    — Translucent pills, headers, nav controls
+Layer 0: CONTENT     — 300×300, clipped to 18pt rounded rect (the outermost shape)
+Layer 1: RING        — 8pt stroke, rounded rect path at 6pt inset
+Layer 2: BOARD       — 280×280, 8×8 grid, 35pt squares (flush with ring inner edge)
+Layer 3: OVERLAYS    — Translucent pills, headers, nav controls
 ```
 
 **Math:**
-- Content clip: `RoundedRectangle(cornerRadius: 14)` on the root view — this is the anchor for all concentric radii
-- Ring path: `RoundedRectangle` at 4pt inset from content edge, 8pt stroke → outer edge at 0pt, inner edge at 8pt
-- Gap: 2pt → board starts at 10pt inset
-- **⚠ Bezel asymmetry (to fix in Sprint 3):** The outer gap (content edge → ring outer edge) is 0pt, but the inner gap (ring inner edge → board) is 2pt. Sprint 3 will equalize these bezels — the ring and board may shift inward slightly, accepting more corner clip on the board in exchange for balanced visual spacing.
+- Content clip: `RoundedRectangle(cornerRadius: 18)` on the root view — this is the anchor for all concentric radii
+- Ring path: `RoundedRectangle` at 6pt inset from content edge, 8pt stroke → outer edge at 2pt, inner edge at 10pt
+- Gap: 0pt — ring inner edge is flush with board edge (no bezel channel). The 2pt outer gap (content edge → ring outer edge) provides breathing room.
 - Board: `300 - 2×10 = 280×280`
 - Square size: `280 / 8 = 35pt`
 - Corner radii follow the concentric formula (see Design Tokens → Concentric Corner Radius Rule)
@@ -86,9 +84,9 @@ The 300×300 canvas is constant. What changes per face:
 
 | Face | Board Size | Ring | Overlays |
 |------|-----------|------|----------|
-| Clock | 280×280 | Full gold, ticking | None |
-| Glance | 280×280 | Full gold, ticking | Centered glass pill |
-| Detail | 196×196 | Dimmed to 30% | Header + metadata below board |
+| Clock | 280×280 | Full gold, continuous sweep + shimmer pulse | None |
+| Glance | 280×280 | Full gold, continuous sweep + shimmer pulse | Centered glass pill (shadow + inner stroke) |
+| Detail | 176×176 | Hidden (0% opacity) | Header + floating CTA pill + metadata below board |
 | Puzzle | 280×280 | Hidden (0% opacity) | Header overlay at top |
 | Replay | 280×280 | Hidden (0% opacity) | Header top + nav bottom |
 
@@ -121,12 +119,12 @@ The default state. What the user sees 95% of the time.
 ```
 
 - Board: 280×280, centered
-- Ring: Gold, filling clockwise from top-center. Unfilled track visible at 15% gray.
-- Tick marks: 4 cardinal points (top-center, right-center, bottom-center, left-center). Rendered **on top of** the ring fill (z-order above the gold fill and gray track) — always visible regardless of ring progress. White foreground for contrast against both gold and gray. Sized for clear legibility at a glance (see `tick.length`, `tick.width` tokens).
+- Ring: Gold gradient (`accentGoldLight` → `accentGoldDeep`, topLeading→bottomTrailing), filling clockwise from top-center using filled shape architecture (even-odd area between two concentric rounded rects + pie wedge mask). Unfilled track visible at 15% gray. Ring inner edge is flush with the board edge (no gap).
+- Tick marks: 4 cardinal points (top-center, right-center, bottom-center, left-center). Rendered **on top of** the ring fill (z-order above the gold fill and gray track) — always visible regardless of ring progress. White foreground with `.butt` lineCap and a dark outline halo (black at 40% opacity, 1pt wider, also `.butt` lineCap) for contrast against both gold and gray. Positioned at ring outer edge (2pt) to inner edge (10pt) — spanning full ring width as flat rectangular bars. Sized for clear legibility at a glance (see `tick.length`, `tick.width` tokens).
 - AM: White's perspective (rank 1 at bottom). PM: Board flipped (rank 8 at bottom).
 - **No text. No labels. No visible affordances.** Pure ambient display.
 
-**Ring animation:** Each minute, the ring grows by 1/60th over 0.5s with ease timing. The fill is smooth and liquid, not a static jump.
+**Ring animation:** The ring sweeps continuously — progress is computed as `(minute × 60 + second) / 3600`, advancing every second with linear interpolation. A subtle shimmer pulse (opacity oscillating between 0.50 and 1.0 over 1.8s, easeInOut, repeating) creates a glassy breathing effect on the gold gradient fill, like light catching the surface of a jewelry ring.
 
 ---
 
@@ -152,7 +150,7 @@ Triggered by mouse hover over the app content area.
 
 - Board: Gaussian blur (radius 8pt)
 - Ring: Remains fully visible and ticking (the clock doesn't stop)
-- Glass pill: Centered on the board. `.ultraThinMaterial` background, 8pt corner radius, 16pt horizontal padding, 12pt vertical padding.
+- Glass pill: Centered on the board. `.ultraThinMaterial` background, 8pt corner radius, 16pt horizontal padding, 12pt vertical padding. Layered shadows (drop shadow: black 25%, radius 12, y-offset 4; tight shadow: black 10%, radius 2, y-offset 1) lift the pill off the background. A 0.5pt white inner stroke at 25% opacity simulates a glass edge highlight.
   - Line 1: **Formatted time** — "2:47 PM" (SF Pro Display, 18pt, Semibold, `.primary`)
   - Line 2: **Chess context** — "Mate in 2" (SF Pro Text, 12pt, Regular, `.secondary`)
 - This is the **only place** in the entire app where the digital time is displayed.
@@ -184,23 +182,24 @@ Triggered by clicking the board in Clock or Glance face.
 ```
 
 **Header (28pt):**
-- Left: Back chevron (SF Symbol `chevron.left`, 11pt, `.secondary`). Tap returns to Clock face.
-- Right: Gear icon (SF Symbol `gearshape`, 11pt, `.secondary`). Placeholder for future settings. Inactive in v1.0.
+- Left: Back chevron (SF Symbol `chevron.left`, 13pt, Medium weight, `.secondary`). Tap returns to Clock face. 28×28 tap target.
+- Right: Gear icon (SF Symbol `gearshape`, 13pt, Medium weight, `.secondary`). Placeholder for future settings. Inactive in v1.0. 28×28 tap target.
+- Horizontal padding: 16pt (aligns with metadata below).
 
-**Board (196×196):**
-- Centered horizontally, positioned below header with 4pt spacing
+**Board (176×176):**
+- Centered horizontally, positioned below header with 2pt spacing
 - Still interactive — tap enters Puzzle face
-- Rounded corners (4pt radius — uses `radius.board`, not strict concentricity at this inset)
-- Square size: 196/8 = 24.5pt (readable for display, not for interaction)
+- Rounded corners (8pt radius — uses `radius.board`) with 0.5pt dark bevel border (`Color.black.opacity(0.12)`) for ring-board definition
+- Square size: 176/8 = 22pt (readable for display, not for interaction)
 
-**CTA overlay (bottom edge of board):**
-- Height: 28pt. Full width of board.
-- Background: `#000000` at 60% opacity
-- Corner radius: bottom-left and bottom-right match board radius (4pt)
+**CTA floating pill (below board):**
+- Capsule shape (fully rounded), `.ultraThinMaterial` background. 14pt horizontal padding, 7pt vertical padding.
+- Light shadow: black 15%, radius 6, y-offset 2.
+- 8pt spacing between board bottom and pill top.
 - Content depends on puzzle state:
-  - **Not yet played:** "▶ Play" — SF Pro Text, 12pt, Semibold. `accent.gold` foreground. Play icon (SF Symbol `play.fill`, 10pt).
-  - **Solved:** "✓ Solved · Review" — system green foreground. Checkmark icon.
-  - **Failed:** "✗ · Review" — system red foreground. X icon.
+  - **Not yet played:** `play.fill` icon (10pt) + "Play" — `accent.gold` foreground.
+  - **Solved:** `checkmark` icon (10pt) + "Solved" — system green foreground.
+  - **Failed:** `arrow.counterclockwise` icon (10pt) + "Review" — `.secondary` foreground.
 
 **Game metadata (below board):**
 - 8pt spacing between board bottom and first text line
@@ -214,7 +213,7 @@ Triggered by clicking the board in Clock or Glance face.
 - Event names cleaned up: "Titled Tue 1st Aug Late" → "Titled Tuesday, Aug 2023"
 - **Removed:** Round number, AM/PM text, "White:"/"Black:" labels
 
-**Ring:** Visible but dimmed to 30% opacity. Tick marks also at 30%. Still ticking (subtle reminder: "I'm still a clock").
+**Ring:** Hidden (0% opacity). Fully invisible in the Detail face — the board and metadata own the visual space entirely.
 
 ---
 
@@ -417,7 +416,7 @@ panel.collectionBehavior.insert(.canJoinAllSpaces)
 - **Draggable** by background (`isMovableByWindowBackground`).
 - **Close:** Custom × button in top-left corner, visible only on hover (SF Symbol `xmark`, 10pt, `.secondary`, with a small circular `.ultraThinMaterial` background).
 - **Size:** 300×300 (same as popover content).
-- **Corner radius:** Applied via `.clipShape(RoundedRectangle(cornerRadius: 14))` on the SwiftUI root view (uses `radius.outer`).
+- **Corner radius:** Applied via `.clipShape(RoundedRectangle(cornerRadius: 18))` on the SwiftUI root view (uses `radius.outer`).
 - **Shadow:** System shadow (`hasShadow = true`).
 - All five faces work identically in the floating window.
 
@@ -472,9 +471,12 @@ enum ChessClockColor {
     static let boardDark     = Color(red: 181/255, green: 136/255, blue: 99/255)  // #B58863 — Lichess
 
     // Ring
-    static let accentGold    = Color(red: 191/255, green: 155/255, blue: 48/255)  // #BF9B30 — jewelry gold
-    static let accentGoldDim = accentGold.opacity(0.30)                            // Ring in non-clock faces
-    static let ringTrack     = Color.gray.opacity(0.15)                            // Unfilled ring portion
+    static let accentGold      = Color(red: 191/255, green: 155/255, blue: 48/255)  // #BF9B30 — jewelry gold
+    static let accentGoldLight = Color(red: 212/255, green: 185/255, blue: 78/255)  // #D4B94E — lighter warm gold (gradient highlight)
+    static let accentGoldDeep  = Color(red: 138/255, green: 111/255, blue: 31/255)  // #8A6F1F — deeper gold (gradient shadow)
+    static let accentGoldDim   = accentGold.opacity(0.30)                            // Ring in non-clock faces
+    static let ringTrack       = Color.gray.opacity(0.15)                            // Unfilled ring portion
+    static let ringGradient    = LinearGradient(colors: [accentGoldLight, accentGoldDeep], startPoint: .topLeading, endPoint: .bottomTrailing)
 
     // Move highlighting
     static let moveHighlight = Color(red: 246/255, green: 246/255, blue: 104/255).opacity(0.50) // #F6F668 at 50%
@@ -534,10 +536,10 @@ This ensures the gap between nested shapes is uniform at the corners — the sam
 **Derivation for the Clock face layer model:**
 
 ```
-Content outer edge  (0pt inset):   radius = 14pt   ← anchor (radius.outer)
-Ring path center    (4pt inset):   radius = 14 − 4  = 10pt  (radius.ring)
-Ring inner edge     (8pt inset):   radius = 14 − 8  =  6pt  (derived, not a token)
-Board edge         (10pt inset):   radius = 14 − 10 =  4pt  (radius.board)
+Content outer edge  (0pt inset):   radius = 18pt   ← anchor (radius.outer)
+Ring path center    (6pt inset):   radius = 18 − 6  = 12pt  (radius.ring)
+Ring inner edge    (10pt inset):   radius = 18 − 10 =  8pt  (derived, matches radius.board)
+Board edge         (10pt inset):   radius = 18 − 10 =  8pt  (radius.board — flush with ring inner edge)
 ```
 
 **Rules for all future sprints:**
@@ -554,9 +556,9 @@ Tokens marked ★ are derived from the concentric rule above — do not set them
 
 | Token | Value | Derivation | Use |
 |-------|-------|-----------|-----|
-| `radius.outer` | 14pt | Anchor value | Content area clip, floating window |
-| `radius.ring` | 10pt | ★ `outer − ringInset` (14 − 4) | Ring path center corner arcs |
-| `radius.board` | 4pt | ★ `outer − boardInset` (14 − 10) | Board clip shape (all faces) |
+| `radius.outer` | 18pt | Anchor value | Content area clip, floating window |
+| `radius.ring` | 12pt | ★ `outer − ringInset` (18 − 6) | Ring path center corner arcs |
+| `radius.board` | 8pt | ★ `outer − boardInset` (18 − 10) | Board clip shape (all faces) |
 | `radius.card` | 12pt | Independent | Result cards, onboarding card |
 | `radius.pill` | 8pt | Independent | Hover pill, zone pills |
 | `radius.badge` | 4pt | Independent | Small badges, promotion cells |
@@ -567,17 +569,20 @@ Tokens marked ★ are derived from the concentric rule above — do not set them
 |-------|-------|-----------|
 | `app.size` | 300pt | Fixed. Never changes. |
 | `ring.stroke` | 8pt | Weight of the minute ring |
-| `ring.inset` | 4pt | Half of stroke (ring path position) |
-| `bezel.gap` | 2pt | Between ring inner edge and board |
-| `board.inset` | 10pt | `ring.inset + ring.stroke/2 + bezel.gap` = 4 + 4 + 2 |
+| `ring.inset` | 6pt | Ring path center position from content edge |
+| `bezel.gap` | 0pt | Eliminated — ring inner edge flush with board |
+| `board.inset` | 10pt | `ring.inset + ring.stroke/2` = 6 + 4 |
 | `board.size` | 280pt | `app.size - 2 × board.inset` |
 | `square.size` | 35pt | `board.size / 8` |
-| `board.detail` | 196pt | Board in Detail face (24.5pt squares) |
+| `board.detail` | 176pt | Board in Detail face (22pt squares) |
 | `header.height` | 28pt | Top header bar (Detail face) |
 | `overlay.header` | 36pt | Translucent header on board (Puzzle/Replay) |
 | `overlay.nav` | 32pt | Navigation pill at bottom (Replay) |
-| `tick.length` | 6pt | Cardinal tick mark length (spans ring, rendered on top of fill) |
-| `tick.width` | 2pt | Cardinal tick mark stroke |
+| `tick.length` | 8pt | Cardinal tick mark length (spans ring, rendered on top of fill with dark halo) |
+| `tick.width` | 2.5pt | Cardinal tick mark stroke (with 1pt wider black outline beneath) |
+| `ring.outerEdge` | 2pt | Ring outer edge distance from content edge (`ringInset − ringStroke/2`) |
+| `ring.innerEdge` | 10pt | Ring inner edge distance from content edge (`ringInset + ringStroke/2`) |
+| `shimmer.minOpacity` | 0.50 | Shimmer pulse low point (oscillates 0.50↔1.0) |
 
 ### Animations
 
@@ -587,7 +592,8 @@ Tokens marked ★ are derived from the concentric rule above — do not set them
 | `anim.fast` | 0.15s ease | Hover pill out, piece snap-back |
 | `anim.standard` | 0.25s spring(response: 0.3, dampingFraction: 0.8) | Overlays, piece slides, state transitions |
 | `anim.smooth` | 0.4s easeInOut | Board resize, face changes |
-| `anim.ring` | 0.5s ease | Minute ring fill growth |
+| `anim.ring` | 1.0s linear | Continuous minute ring sweep (interpolates between each second) |
+| `anim.shimmer` | 1.8s easeInOut, repeating | Gold ring shimmer pulse (opacity 0.50↔1.0) |
 | `anim.dramatic` | 0.6s easeInOut | Hour-change piece slide |
 | `anim.wrongPulse` | 0.3s fade-out | Red flash on wrong move |
 | `anim.opponentDelay` | 0.4s | Pause before opponent auto-play |
@@ -613,9 +619,9 @@ Every text string in the app. **No string should exist in code that isn't listed
 |---------|------|---------|
 | Back | *(SF Symbol `chevron.left` only)* | |
 | Settings | *(SF Symbol `gearshape` only)* | |
-| CTA (unplayed) | "▶ Play" | |
-| CTA (solved) | "✓ Solved · Review" | |
-| CTA (failed) | "✗ · Review" | |
+| CTA (unplayed) | "▶ Play" | Floating pill, gold foreground |
+| CTA (solved) | "✓ Solved" | Floating pill, green foreground |
+| CTA (failed) | "↺ Review" | Floating pill, secondary foreground |
 | Player (white) | "{FirstName} {LastName} · {ELO}" | "Garry Kasparov · 2851" |
 | Player (black) | "{FirstName} {LastName} · {ELO}" | "Vladimir Kramnik · 2753" |
 | Event | "{EventName} · {MonthAbbr} {Year}" | "World Championship · Nov 2000" |
@@ -816,7 +822,7 @@ Tasks:
 **Goal:** Ship the info panel with proper information hierarchy.
 
 Tasks:
-- [x] Fix bezel consistency: the outer gap (content edge → ring outer edge) is currently 0pt while the inner gap (ring inner edge → board) is 2pt. Audit `ring.inset`, `ring.stroke`, and `bezel.gap` values so both gaps are visually equal. Accepted trade-off: the board may shrink slightly and corner clips increase. Update `DesignTokens.swift` dimensions, the Layer Model math, and the concentric radius derivation to match.
+- [x] Fix bezel consistency: equalized ring inset and bezel gap. Further refined in Sprint 3.5 (gap eliminated entirely — ring inner edge flush with board).
 - [x] Fix tick marks: increase size (`tick.length` → 6pt, `tick.width` → 2pt), render on top of ring fill (z-order above gold fill layer), and switch to white foreground for contrast. Tick marks must always be visible regardless of ring progress.
 - [x] Detail face layout: board 196×196 centered, metadata below, header with back + gear
 - [x] Board scale animation: 280→196 with 0.3s spring on transition from Clock
@@ -828,6 +834,33 @@ Tasks:
 - [x] Gear icon placeholder (top-right, inactive in v1.0)
 
 ✓ **Acceptance:** Bezels are visually balanced (equal gaps on both sides of the ring). Tick marks are clearly visible at all times, even when the gold fill passes them. Clicking the clock shows game info with properly formatted names, clean hierarchy, and working CTA.
+
+### Sprint 3.5 — Ring Polish + Detail Fix ✓
+**Goal:** Visual polish pass on ring, hover pill, and detail face before Puzzle sprint.
+
+Tasks:
+- [x] Update DesignTokens: corner radii (18/12/8), ringInset=6, bezelGap=0, tick sizes, shimmer token
+- [x] Add `second` to ClockState + ClockService for continuous ring progress
+- [x] Rewrite MinuteBezelView: continuous sweep, shimmer pulse, tick dark halo for contrast
+- [x] Upgrade GlassPillView: shadow, inner stroke for glass-edge effect
+- [x] Fix InfoPanelView: header padding (16pt), CTA floating pill below board, remove overlay bar
+- [x] Update ClockView: pass second, detail ring 20% opacity + 0.5pt blur
+- [x] Update DESIGN.md with all spec changes
+
+✓ **Acceptance:** Ring sweeps continuously with shimmer pulse. No gap between ring and board. Corners are rounder (18→12→8). Ticks visible at all positions. Hover pill pops with shadow. Detail face has properly positioned header, floating CTA pill, and intentionally ghosted ring.
+
+### Sprint 3.75 — Ring Geometry + Detail Face Fix ✓
+**Goal:** Fix ring rendering artifacts (lineCap bleed, corner gaps, flat appearance, weak shimmer) and repair Detail face layout (clipped buttons, overflowing text, visible ring).
+
+Tasks:
+- [x] Update DesignTokens — gradient colors (`accentGoldLight`/`accentGoldDeep`), `ringGradient`, shimmer 1.8s/0.50↔1.0, `boardDetail` 196→176, `ringOuterEdge`/`ringInnerEdge`/`shimmerMinOpacity`
+- [x] Rewrite MinuteBezelView — `FilledRingTrack` (even-odd fill between two concentric rounded rects) + `ProgressWedge` mask (pie wedge, `Animatable`), gold gradient fill, `.butt` lineCap ticks at ring edges
+- [x] Add board edge bevel — 0.5pt dark `strokeBorder` overlay on `BoardView` clip shape
+- [x] Fix InfoPanelView layout — 8pt top padding, 20pt header horizontal padding, 2pt board spacing, 6pt CTA spacing, reads 176pt token
+- [x] Hide ring in Detail face — ring opacity 0.0 for `.info` mode, removed unnecessary blur
+- [x] Update DESIGN.md with all spec changes
+
+✓ **Acceptance:** Ring uses filled shape architecture with gradient, no lineCap bleed or corner gaps. Shimmer wider and faster. Detail face fits within 300pt with no clipping. Ring fully hidden in detail. Board has subtle edge definition.
 
 ### Sprint 4 — Puzzle Face
 **Goal:** Ship the interactive puzzle in a fixed 300×300 square.
