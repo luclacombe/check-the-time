@@ -72,6 +72,82 @@ struct ProgressWedge: Shape, Animatable {
     }
 }
 
+// MARK: - RingCenterlinePath
+
+/// Traces the centerline of the ring track as a rounded rect.
+/// Starts at top-center and proceeds clockwise, so `trim(from: 0, to: x)`
+/// maps from 12 o'clock clockwise — matching `ProgressWedge` angular semantics.
+struct RingCenterlinePath: Shape {
+    func path(in rect: CGRect) -> Path {
+        let inset: CGFloat = 6    // 6pt from content edge
+        let r: CGFloat = 12       // 12pt corner radius
+
+        let left   = rect.minX + inset
+        let right  = rect.maxX - inset
+        let top    = rect.minY + inset
+        let bottom = rect.maxY - inset
+        let midX   = rect.midX
+
+        var path = Path()
+
+        // Start at top-center
+        path.move(to: CGPoint(x: midX, y: top))
+
+        // → Right along top edge
+        path.addLine(to: CGPoint(x: right - r, y: top))
+
+        // ↘ Top-right arc (90°)
+        path.addArc(
+            center: CGPoint(x: right - r, y: top + r),
+            radius: r,
+            startAngle: .degrees(-90),
+            endAngle: .degrees(0),
+            clockwise: false
+        )
+
+        // ↓ Down right edge
+        path.addLine(to: CGPoint(x: right, y: bottom - r))
+
+        // ↙ Bottom-right arc (90°)
+        path.addArc(
+            center: CGPoint(x: right - r, y: bottom - r),
+            radius: r,
+            startAngle: .degrees(0),
+            endAngle: .degrees(90),
+            clockwise: false
+        )
+
+        // ← Left along bottom edge
+        path.addLine(to: CGPoint(x: left + r, y: bottom))
+
+        // ↖ Bottom-left arc (90°)
+        path.addArc(
+            center: CGPoint(x: left + r, y: bottom - r),
+            radius: r,
+            startAngle: .degrees(90),
+            endAngle: .degrees(180),
+            clockwise: false
+        )
+
+        // ↑ Up left edge
+        path.addLine(to: CGPoint(x: left, y: top + r))
+
+        // ↗ Top-left arc (90°)
+        path.addArc(
+            center: CGPoint(x: left + r, y: top + r),
+            radius: r,
+            startAngle: .degrees(180),
+            endAngle: .degrees(270),
+            clockwise: false
+        )
+
+        // Close back to top-center
+        path.addLine(to: CGPoint(x: midX, y: top))
+
+        return path
+    }
+}
+
 // MARK: - MinuteBezelView
 
 struct MinuteBezelView: View {
@@ -108,10 +184,69 @@ struct MinuteBezelView: View {
                 .fill(ChessClockTube.centerHighlight, style: FillStyle(eoFill: true))
                 .mask(ProgressWedge(progress: progress))
 
+            // Traveling pulse layer — above tube overlays, below tick marks
+            if progress > 0 {
+                TimelineView(.animation) { timeline in
+                    pulseLayer(elapsed: timeline.date.timeIntervalSinceReferenceDate)
+                }
+            }
+
             // Cardinal tick marks on top
             tickMarks
         }
         .animation(.linear(duration: 1.0), value: second)
+    }
+
+    // MARK: - Pulse Layer
+
+    /// Renders two concurrent traveling light pulses along the ring centerline.
+    private func pulseLayer(elapsed: Double) -> some View {
+        let prog = Double(progress)
+        // Cycle duration scales with fill: 1.5s at low progress, ~5s at full
+        let rawCycle = ChessClockPulse.baseDuration + ChessClockPulse.scaleDuration * prog
+        // Organic variation
+        let cycleDuration = rawCycle + sin(elapsed * 0.7) * 0.3
+        let safeCycle = max(cycleDuration, 0.1)  // avoid division by zero
+
+        // Pulse width scales with progress
+        let pulseWidth = max(ChessClockPulse.width * prog, Double(ChessClockPulse.minAbsoluteWidth))
+
+        // Phase for pulse 1 and pulse 2 (offset by 50%)
+        let phase1 = (elapsed / safeCycle).truncatingRemainder(dividingBy: 1.0)
+        let phase2 = (phase1 + 0.5).truncatingRemainder(dividingBy: 1.0)
+
+        return ZStack {
+            pulseStrokes(phase: phase1, progress: prog, pulseWidth: pulseWidth)
+            pulseStrokes(phase: phase2, progress: prog, pulseWidth: pulseWidth)
+        }
+        .mask(ProgressWedge(progress: progress))
+    }
+
+    /// Renders the three layers (core, inner glow, outer glow) for a single pulse.
+    private func pulseStrokes(phase: Double, progress prog: Double, pulseWidth: Double) -> some View {
+        let trimPos = phase * (prog + pulseWidth)
+        let trimFrom = max(0, trimPos - pulseWidth)
+        let trimTo = min(prog, trimPos)
+        let lineW = ChessClockSize.ringStroke
+
+        return ZStack {
+            // 1. Core
+            RingCenterlinePath()
+                .trim(from: CGFloat(trimFrom), to: CGFloat(trimTo))
+                .stroke(ChessClockPulse.coreColor, style: StrokeStyle(lineWidth: lineW, lineCap: .butt))
+
+            // 2. Inner glow
+            RingCenterlinePath()
+                .trim(from: CGFloat(trimFrom), to: CGFloat(trimTo))
+                .stroke(ChessClockPulse.glowColor, style: StrokeStyle(lineWidth: lineW, lineCap: .butt))
+                .blur(radius: ChessClockPulse.innerGlowBlur)
+
+            // 3. Outer glow
+            RingCenterlinePath()
+                .trim(from: CGFloat(trimFrom), to: CGFloat(trimTo))
+                .stroke(ChessClockPulse.glowColor, style: StrokeStyle(lineWidth: lineW, lineCap: .butt))
+                .blur(radius: ChessClockPulse.outerGlowBlur)
+        }
     }
 
     // MARK: - Tick Marks
