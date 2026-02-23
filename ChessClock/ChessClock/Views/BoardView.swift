@@ -38,6 +38,7 @@ struct BoardView: View {
             }
         }
         .aspectRatio(1, contentMode: .fit)
+        .clipShape(RoundedRectangle(cornerRadius: 6))
     }
 }
 
