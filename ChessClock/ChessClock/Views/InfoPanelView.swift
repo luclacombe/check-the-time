@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Detail face — shown when the user taps the board in the main clock view.
-/// Header (back + gear) → 196×196 board → floating CTA pill → game metadata.
+/// Flanking icons + 164×164 board → CTA pill → player rows with indicators → event.
 struct InfoPanelView: View {
     let state: ClockState
     @ObservedObject var guessService: GuessService
@@ -11,8 +11,8 @@ struct InfoPanelView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // 1. Header
-            HStack {
+            // 1. Board section with flanking icons
+            HStack(alignment: .top) {
                 Button(action: onBack) {
                     Image(systemName: "chevron.left")
                         .font(.system(size: 13, weight: .medium))
@@ -20,6 +20,14 @@ struct InfoPanelView: View {
                         .frame(width: 28, height: 28)
                 }
                 .buttonStyle(.plain)
+
+                Spacer()
+
+                BoardView(fen: state.fen, isFlipped: state.isFlipped)
+                    .frame(width: ChessClockSize.boardDetail, height: ChessClockSize.boardDetail)
+                    .clipShape(RoundedRectangle(cornerRadius: ChessClockRadius.board))
+                    .contentShape(Rectangle())
+                    .onTapGesture { tapAction() }
 
                 Spacer()
 
@@ -31,28 +39,19 @@ struct InfoPanelView: View {
                 }
                 .buttonStyle(.plain)
             }
-            .frame(height: ChessClockSize.headerHeight)
-            .padding(.horizontal, 20)
+            .padding(.horizontal, 8)
 
-            // 2. Board (no CTA overlay)
-            BoardView(fen: state.fen, isFlipped: state.isFlipped)
-                .frame(width: ChessClockSize.boardDetail, height: ChessClockSize.boardDetail)
-                .clipShape(RoundedRectangle(cornerRadius: ChessClockRadius.board))
-                .contentShape(Rectangle())
-                .onTapGesture { tapAction() }
-                .padding(.top, ChessClockSpace.xs)
-
-            // 3. Floating CTA pill
+            // 2. CTA pill
             Button(action: tapAction) {
                 HStack(spacing: 6) {
                     Image(systemName: ctaIcon)
-                        .font(.system(size: 10, weight: .semibold))
+                        .font(.system(size: ChessClockCTADetail.iconSize, weight: .semibold))
                     Text(ctaText)
-                        .font(.system(size: 12, weight: .semibold))
+                        .font(.system(size: ChessClockCTADetail.fontSize, weight: .semibold))
                 }
                 .foregroundColor(ctaForeground)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 7)
+                .padding(.horizontal, ChessClockCTADetail.hPadding)
+                .padding(.vertical, ChessClockCTADetail.vPadding)
                 .background(.ultraThinMaterial)
                 .clipShape(Capsule())
                 .shadow(color: .black.opacity(0.15), radius: 6, x: 0, y: 2)
@@ -60,29 +59,105 @@ struct InfoPanelView: View {
             .buttonStyle(.plain)
             .padding(.top, 6)
 
-            // 4. Game metadata
+            // 3. Game metadata
             VStack(alignment: .leading, spacing: ChessClockSpace.sm) {
-                Text(PlayerNameFormatter.format(pgn: state.game.white, elo: state.game.whiteElo))
-                    .font(ChessClockType.body)
-                    .foregroundColor(.primary)
+                // White player row
+                whitePlayerRow
 
-                Text(PlayerNameFormatter.format(pgn: state.game.black, elo: state.game.blackElo))
-                    .font(ChessClockType.body)
-                    .foregroundColor(.primary)
+                // Black player row
+                blackPlayerRow
 
+                // Event line (centered)
                 Text(eventString)
                     .font(ChessClockType.caption)
                     .foregroundColor(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .center)
             }
-            .padding(.top, ChessClockSpace.sm)
+            .padding(.top, ChessClockSpace.md)
             .padding(.horizontal, ChessClockSpace.xl)
             .frame(maxWidth: .infinity, alignment: .leading)
 
-            // 5. Bottom spacer
+            // 4. Bottom spacer
             Spacer()
         }
-        .padding(.top, 8)
+        .padding(.top, 12)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    // MARK: - Player Rows
+
+    private var whitePlayerRow: some View {
+        HStack {
+            // Glassy white indicator
+            ZStack {
+                Circle()
+                    .fill(Color.white)
+                LinearGradient(
+                    stops: [
+                        .init(color: .white.opacity(0.9), location: 0.0),
+                        .init(color: .clear, location: 0.45),
+                        .init(color: .black.opacity(0.08), location: 1.0)
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .clipShape(Circle())
+                Circle()
+                    .stroke(Color.gray.opacity(0.35), lineWidth: 0.5)
+            }
+            .frame(width: 8, height: 8)
+            .shadow(color: .black.opacity(0.15), radius: 1, y: 0.5)
+
+            Spacer().frame(width: 6)
+
+            Text(PlayerNameFormatter.format(pgn: state.game.white, elo: "?"))
+                .font(ChessClockType.body)
+                .foregroundColor(.primary)
+
+            Spacer()
+
+            if state.game.whiteElo != "?" && !state.game.whiteElo.isEmpty {
+                Text(state.game.whiteElo)
+                    .font(ChessClockType.body)
+                    .foregroundColor(.secondary)
+            }
+        }
+    }
+
+    private var blackPlayerRow: some View {
+        HStack {
+            // Glassy black indicator
+            ZStack {
+                Circle()
+                    .fill(Color(white: 0.15))
+                LinearGradient(
+                    stops: [
+                        .init(color: .white.opacity(0.30), location: 0.0),
+                        .init(color: .clear, location: 0.45),
+                        .init(color: .black.opacity(0.15), location: 1.0)
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .clipShape(Circle())
+            }
+            .frame(width: 8, height: 8)
+            .shadow(color: .black.opacity(0.20), radius: 1, y: 0.5)
+
+            Spacer().frame(width: 6)
+
+            Text(PlayerNameFormatter.format(pgn: state.game.black, elo: "?"))
+                .font(ChessClockType.body)
+                .foregroundColor(.primary)
+
+            Spacer()
+
+            if state.game.blackElo != "?" && !state.game.blackElo.isEmpty {
+                Text(state.game.blackElo)
+                    .font(ChessClockType.body)
+                    .foregroundColor(.secondary)
+            }
+        }
     }
 
     // MARK: - CTA Properties
