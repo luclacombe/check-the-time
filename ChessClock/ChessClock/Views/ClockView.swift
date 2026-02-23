@@ -54,8 +54,7 @@ struct ClockView: View {
                 }
             }
         }
-        .padding(12)
-        .frame(width: 312, height: (viewMode == .puzzle || viewMode == .replay) ? 500 : 332)
+        .frame(width: 300, height: 300)
         // Reset to clock whenever this MenuBarExtra window becomes key (popover reopens)
         .background(WindowObserver { viewMode = .clock })
     }
@@ -64,16 +63,14 @@ struct ClockView: View {
 
     private var boardWithRing: some View {
         ZStack {
-            BoardView(fen: clockService.state.fen, isFlipped: clockService.state.isFlipped)
-                .overlay(
-                    GeometryReader { geo in
-                        MinuteSquareRingView(
-                            minute: clockService.state.minute,
-                            boardSize: geo.size.width
-                        )
-                    }
-                )
+            // Layer 1: minute bezel ring (fills 300×300)
+            MinuteBezelView(minute: clockService.state.minute)
 
+            // Layer 2: chess board (280×280, centered — 10pt inset per side)
+            BoardView(fen: clockService.state.fen, isFlipped: clockService.state.isFlipped)
+                .frame(width: 280, height: 280)
+
+            // Layer 3: hover overlay
             if isHovering {
                 VStack {
                     Spacer()
@@ -89,6 +86,7 @@ struct ClockView: View {
                 }
             }
         }
+        .frame(width: 300, height: 300)
         .contentShape(Rectangle())
         .onHover { isHovering = $0 }
         .onTapGesture { viewMode = .info }
