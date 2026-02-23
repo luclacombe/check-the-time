@@ -5,11 +5,12 @@ import SwiftUI
 /// Draws the filled area between two concentric rounded rects.
 /// Use with `FillStyle(eoFill: true)` to punch the inner rect out.
 struct FilledRingTrack: Shape {
+    var outerInset: CGFloat = ChessClockSize.ringOuterEdge  // 2pt default
+    var innerInset: CGFloat = ChessClockSize.ringInnerEdge  // 10pt default
+
     func path(in rect: CGRect) -> Path {
-        let outerInset = ChessClockSize.ringOuterEdge          // 2pt
-        let innerInset = ChessClockSize.ringInnerEdge          // 10pt
-        let outerRadius = ChessClockRadius.outer - outerInset  // 18 - 2 = 16pt
-        let innerRadius = ChessClockRadius.outer - innerInset  // 18 - 10 = 8pt
+        let outerRadius = ChessClockRadius.outer - outerInset
+        let innerRadius = ChessClockRadius.outer - innerInset
 
         var path = Path()
 
@@ -91,6 +92,22 @@ struct MinuteBezelView: View {
                 .fill(ChessClockColor.ringGradient, style: FillStyle(eoFill: true))
                 .mask(ProgressWedge(progress: progress))
 
+            // Glass tube overlays — masked by progress wedge
+            // 1. Inner-edge specular highlight
+            FilledRingTrack(outerInset: 9, innerInset: 10)
+                .fill(ChessClockTube.specularHighlight, style: FillStyle(eoFill: true))
+                .mask(ProgressWedge(progress: progress))
+
+            // 2. Outer-edge shadow
+            FilledRingTrack(outerInset: 2, innerInset: 3)
+                .fill(ChessClockTube.outerShadow, style: FillStyle(eoFill: true))
+                .mask(ProgressWedge(progress: progress))
+
+            // 3. Center highlight
+            FilledRingTrack(outerInset: 5, innerInset: 7)
+                .fill(ChessClockTube.centerHighlight, style: FillStyle(eoFill: true))
+                .mask(ProgressWedge(progress: progress))
+
             // Cardinal tick marks on top
             tickMarks
         }
@@ -107,59 +124,60 @@ struct MinuteBezelView: View {
             let innerEdge = ChessClockSize.ringInnerEdge  // 10pt — tick inner end
             let tickW = ChessClockSize.tickWidth
 
-            // Top tick (12 o'clock) — vertical, from outerEdge to innerEdge
+            // Top tick (12 o'clock) — vertical, outer is at top
             tickMark(
                 from: CGPoint(x: w / 2, y: outerEdge),
                 to:   CGPoint(x: w / 2, y: innerEdge),
-                width: tickW
+                width: tickW,
+                gradientStart: .top,
+                gradientEnd: .bottom
             )
 
-            // Right tick (3 o'clock) — horizontal, from outerEdge to innerEdge
+            // Right tick (3 o'clock) — horizontal, outer is at right
             tickMark(
                 from: CGPoint(x: w - outerEdge, y: h / 2),
                 to:   CGPoint(x: w - innerEdge, y: h / 2),
-                width: tickW
+                width: tickW,
+                gradientStart: .trailing,
+                gradientEnd: .leading
             )
 
-            // Bottom tick (6 o'clock) — vertical, from outerEdge to innerEdge
+            // Bottom tick (6 o'clock) — vertical, outer is at bottom
             tickMark(
                 from: CGPoint(x: w / 2, y: h - outerEdge),
                 to:   CGPoint(x: w / 2, y: h - innerEdge),
-                width: tickW
+                width: tickW,
+                gradientStart: .bottom,
+                gradientEnd: .top
             )
 
-            // Left tick (9 o'clock) — horizontal, from outerEdge to innerEdge
+            // Left tick (9 o'clock) — horizontal, outer is at left
             tickMark(
                 from: CGPoint(x: outerEdge, y: h / 2),
                 to:   CGPoint(x: innerEdge, y: h / 2),
-                width: tickW
+                width: tickW,
+                gradientStart: .leading,
+                gradientEnd: .trailing
             )
         }
     }
 
-    /// Draws a tick mark: dark halo beneath a white stroke, both with `.butt` lineCap.
-    private func tickMark(from: CGPoint, to: CGPoint, width: CGFloat) -> some View {
-        ZStack {
-            // Dark halo (drawn first, slightly wider)
-            Path { path in
-                path.move(to: from)
-                path.addLine(to: to)
-            }
-            .stroke(
-                Color.black.opacity(0.4),
-                style: StrokeStyle(lineWidth: width + 1, lineCap: .butt)
-            )
-
-            // White foreground
-            Path { path in
-                path.move(to: from)
-                path.addLine(to: to)
-            }
-            .stroke(
-                Color.white,
-                style: StrokeStyle(lineWidth: width, lineCap: .butt)
-            )
+    /// Draws a single tick mark with a gradient along its length.
+    /// Outer end (toward content edge) is bright, inner end (toward board) is dim.
+    private func tickMark(from: CGPoint, to: CGPoint, width: CGFloat,
+                          gradientStart: UnitPoint, gradientEnd: UnitPoint) -> some View {
+        Path { path in
+            path.move(to: from)
+            path.addLine(to: to)
         }
+        .stroke(
+            LinearGradient(
+                colors: [Color.white.opacity(0.40), Color.white.opacity(0.15)],
+                startPoint: gradientStart,
+                endPoint: gradientEnd
+            ),
+            style: StrokeStyle(lineWidth: width, lineCap: .butt)
+        )
     }
 }
 
