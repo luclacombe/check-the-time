@@ -87,13 +87,6 @@ struct GameReplayView: View {
         return allPositions[posIndex]
     }
 
-    /// The move that arrived at the current position (for the arrow overlay).
-    /// nil at posIndex 0 (starting position — no move played yet).
-    private var moveArrow: ChessMove? {
-        guard posIndex > 0, posIndex - 1 < game.allMoves.count else { return nil }
-        return ChessMove.from(uci: game.allMoves[posIndex - 1])
-    }
-
     /// "Starting position" at pos 0; "Checkmate" at the final pos; move UCI otherwise.
     private var moveLabel: String {
         if posIndex == 0 { return "Starting position" }
@@ -171,16 +164,8 @@ struct GameReplayView: View {
     }
 
     private var board: some View {
-        // No .id(posIndex) — update board in-place to avoid flash.
-        // The arrow fades in/out to signal which move was played.
         BoardView(fen: displayFEN, isFlipped: isFlipped)
             .aspectRatio(1, contentMode: .fit)
-            .overlay {
-                if let arrow = moveArrow {
-                    MoveArrowView(from: arrow.from, to: arrow.to, isFlipped: isFlipped)
-                        .transition(.opacity)
-                }
-            }
             .animation(.easeInOut(duration: 0.18), value: posIndex)
     }
 

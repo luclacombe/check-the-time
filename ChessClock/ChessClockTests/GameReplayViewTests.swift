@@ -8,11 +8,10 @@ import XCTest
 ///   2. Move labels          (6)
 ///   3. Position counter     (4)
 ///   4. Navigation clamping  (6)
-///   5. Arrow geometry       (8)
-///   6. Zone label text      (3)
-///   7. Full-position replay (5)
+///   5. Zone label text      (3)
+///   6. Full-position replay (5)
 ///
-/// Total: 40 tests — all pure logic, no SwiftUI hosting required.
+/// Total: 32 tests — all pure logic, no SwiftUI hosting required.
 final class GameReplayViewTests: XCTestCase {
 
     // MARK: - Shared fixtures
@@ -199,90 +198,13 @@ final class GameReplayViewTests: XCTestCase {
         XCTAssertEqual(posIndex, totalMoves)
     }
 
-    // MARK: - 5. Arrow square-centre geometry (8 tests)
-    //
-    // ChessSquare: rankIndex = 8 − rank, fileIndex = file − 1
-    // Not flipped: screenRow = rankIndex,     screenCol = fileIndex
-    // Flipped:     screenRow = 7 − rankIndex, screenCol = fileIndex
-    // Centre: x = screenCol × sqSize + sqSize/2,  y = screenRow × sqSize + sqSize/2
-
-    private let sqSize: CGFloat = 80
-
-    /// a1 (rank=1, file=1): rankIndex=7, fileIndex=0
-    /// Not flipped: screenRow=7 → centre (40, 600)
-    func testSquareCenter_a1_notFlipped() {
-        let sq = ChessSquare(rank: 1, file: 1)
-        let c  = MoveArrowView.squareCenter(sq: sq, squareSize: sqSize, isFlipped: false)
-        XCTAssertEqual(c.x,  40, accuracy: 0.01)
-        XCTAssertEqual(c.y, 600, accuracy: 0.01)
-    }
-
-    /// a1 flipped: screenRow = 7 − 7 = 0 → centre (40, 40)
-    func testSquareCenter_a1_flipped() {
-        let sq = ChessSquare(rank: 1, file: 1)
-        let c  = MoveArrowView.squareCenter(sq: sq, squareSize: sqSize, isFlipped: true)
-        XCTAssertEqual(c.x, 40, accuracy: 0.01)
-        XCTAssertEqual(c.y, 40, accuracy: 0.01)
-    }
-
-    /// h8 (rank=8, file=8): rankIndex=0, fileIndex=7
-    /// Not flipped: screenRow=0, screenCol=7 → centre (600, 40)
-    func testSquareCenter_h8_notFlipped() {
-        let sq = ChessSquare(rank: 8, file: 8)
-        let c  = MoveArrowView.squareCenter(sq: sq, squareSize: sqSize, isFlipped: false)
-        XCTAssertEqual(c.x, 600, accuracy: 0.01)
-        XCTAssertEqual(c.y,  40, accuracy: 0.01)
-    }
-
-    /// h8 flipped: screenRow = 7 − 0 = 7 → centre (600, 600)
-    func testSquareCenter_h8_flipped() {
-        let sq = ChessSquare(rank: 8, file: 8)
-        let c  = MoveArrowView.squareCenter(sq: sq, squareSize: sqSize, isFlipped: true)
-        XCTAssertEqual(c.x, 600, accuracy: 0.01)
-        XCTAssertEqual(c.y, 600, accuracy: 0.01)
-    }
-
-    /// e4 (rank=4, file=5): rankIndex=4, fileIndex=4
-    /// Not flipped: screenRow=4 → centre (360, 360)
-    func testSquareCenter_e4_notFlipped() {
-        let sq = ChessSquare(rank: 4, file: 5)
-        let c  = MoveArrowView.squareCenter(sq: sq, squareSize: sqSize, isFlipped: false)
-        XCTAssertEqual(c.x, 360, accuracy: 0.01)
-        XCTAssertEqual(c.y, 360, accuracy: 0.01)
-    }
-
-    /// e4 flipped: screenRow = 7 − 4 = 3 → centre (360, 280)
-    func testSquareCenter_e4_flipped() {
-        let sq = ChessSquare(rank: 4, file: 5)
-        let c  = MoveArrowView.squareCenter(sq: sq, squareSize: sqSize, isFlipped: true)
-        XCTAssertEqual(c.x, 360, accuracy: 0.01)
-        XCTAssertEqual(c.y, 280, accuracy: 0.01)
-    }
-
-    /// d5 (rank=5, file=4): rankIndex=3, fileIndex=3
-    /// Not flipped: screenRow=3 → centre (280, 280)
-    func testSquareCenter_d5_notFlipped() {
-        let sq = ChessSquare(rank: 5, file: 4)
-        let c  = MoveArrowView.squareCenter(sq: sq, squareSize: sqSize, isFlipped: false)
-        XCTAssertEqual(c.x, 280, accuracy: 0.01)
-        XCTAssertEqual(c.y, 280, accuracy: 0.01)
-    }
-
-    /// squareSize=100: a1 not flipped → (50, 750)
-    func testSquareCenter_squareSize100_a1() {
-        let sq = ChessSquare(rank: 1, file: 1)
-        let c  = MoveArrowView.squareCenter(sq: sq, squareSize: 100, isFlipped: false)
-        XCTAssertEqual(c.x,  50, accuracy: 0.01)
-        XCTAssertEqual(c.y, 750, accuracy: 0.01)
-    }
-
-    // MARK: - 6. Zone label text (3 tests)
+    // MARK: - 5. Zone label text (3 tests)
 
     func testZoneLabel_before() { XCTAssertEqual(ReplayZone.before.label, "Game context") }
     func testZoneLabel_start()  { XCTAssertEqual(ReplayZone.start.label,  "Puzzle start") }
     func testZoneLabel_after()  { XCTAssertEqual(ReplayZone.after.label,  "Solution")     }
 
-    // MARK: - 7. Full-position computation via computeAllPositions (5 tests)
+    // MARK: - 6. Full-position computation via computeAllPositions (5 tests)
 
     func testComputeAllPositions_firstPosIsStartingFEN() {
         let game = makeGame(allMoves: tenMoves)
