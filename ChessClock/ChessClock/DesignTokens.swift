@@ -76,7 +76,7 @@ enum ChessClockSize {
     static let boardInset: CGFloat = 10
     static let board: CGFloat = 280
     static let square: CGFloat = 35
-    static let boardDetail: CGFloat = 176
+    static let boardDetail: CGFloat = 164
     static let headerHeight: CGFloat = 28
     static let overlayHeader: CGFloat = 36
     static let overlayNav: CGFloat = 32
@@ -84,7 +84,6 @@ enum ChessClockSize {
     static let tickWidth: CGFloat = 2.5
     static let ringOuterEdge: CGFloat = 2
     static let ringInnerEdge: CGFloat = 10
-    static let shimmerMinOpacity: CGFloat = 0.50
 }
 
 // MARK: - Animations
@@ -96,5 +95,36 @@ enum ChessClockAnimation {
     static let smooth   = Animation.easeInOut(duration: 0.4)
     static let ring     = Animation.easeInOut(duration: 0.5)
     static let dramatic = Animation.easeInOut(duration: 0.6)
-    static let shimmer  = Animation.easeInOut(duration: 1.8).repeatForever(autoreverses: true)
+}
+
+// MARK: - Ring Pulse Tokens
+
+enum ChessClockPulse {
+    static let width: CGFloat = 0.12           // fraction of filled arc
+    static let count: Int = 2                   // concurrent pulses
+    static let baseDuration: Double = 1.5       // transit seconds at progress ≈ 0
+    static let scaleDuration: Double = 3.5      // added seconds at progress = 1.0
+    // duration = baseDuration + scaleDuration × progress
+    static let coreColor = Color.white.opacity(0.55)
+    static let glowColor = ChessClockColor.accentGoldLight.opacity(0.35)
+    static let innerGlowBlur: CGFloat = 4
+    static let outerGlowBlur: CGFloat = 8
+    static let minAbsoluteWidth: CGFloat = 0.03 // minimum trim width for very short bars
+}
+
+// MARK: - Ring Tube Tokens
+
+enum ChessClockTube {
+    static let specularHighlight = Color.white.opacity(0.20)  // inner-edge strip
+    static let outerShadow = Color.black.opacity(0.08)        // outer-edge strip
+    static let centerHighlight = Color.white.opacity(0.08)    // center band
+}
+
+// MARK: - Detail CTA Tokens
+
+enum ChessClockCTADetail {
+    static let fontSize: CGFloat = 11
+    static let iconSize: CGFloat = 9
+    static let hPadding: CGFloat = 12
+    static let vPadding: CGFloat = 6
 }

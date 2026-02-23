@@ -80,29 +80,21 @@ struct MinuteBezelView: View {
     /// Continuous progress 0.0 … ~0.9997 — advances every second.
     private var progress: CGFloat { CGFloat(minute * 60 + second) / 3600.0 }
 
-    @State private var shimmerPhase = false
-
     var body: some View {
         ZStack {
             // Track layer: full ring in muted gray
             FilledRingTrack()
                 .fill(ChessClockColor.ringTrack, style: FillStyle(eoFill: true))
 
-            // Fill layer: gold gradient masked by progress wedge + shimmer
+            // Fill layer: gold gradient masked by progress wedge
             FilledRingTrack()
                 .fill(ChessClockColor.ringGradient, style: FillStyle(eoFill: true))
                 .mask(ProgressWedge(progress: progress))
-                .opacity(shimmerPhase ? 1.0 : ChessClockSize.shimmerMinOpacity)
 
             // Cardinal tick marks on top
             tickMarks
         }
         .animation(.linear(duration: 1.0), value: second)
-        .onAppear {
-            withAnimation(ChessClockAnimation.shimmer) {
-                shimmerPhase = true
-            }
-        }
     }
 
     // MARK: - Tick Marks
