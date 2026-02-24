@@ -2,6 +2,14 @@ import AppKit
 import QuartzCore
 import SwiftUI
 
+// MARK: - Flipped NSView (y-down to match SwiftUI coordinate system)
+
+/// NSView subclass with `isFlipped = true` so the layer coordinate system
+/// has origin at top-left (y-down), matching SwiftUI and all the path math.
+private final class FlippedLayerView: NSView {
+    override var isFlipped: Bool { true }
+}
+
 // MARK: - GoldRingLayerView
 
 /// CALayer-based minute ring replacing the SwiftUI MinuteBezelView.
@@ -13,7 +21,7 @@ struct GoldRingLayerView: NSViewRepresentable {
     func makeCoordinator() -> Coordinator { Coordinator() }
 
     func makeNSView(context: Context) -> NSView {
-        let view = NSView(frame: NSRect(x: 0, y: 0, width: 300, height: 300))
+        let view = FlippedLayerView(frame: NSRect(x: 0, y: 0, width: 300, height: 300))
         view.wantsLayer = true
         view.layer?.masksToBounds = false
 
@@ -38,7 +46,21 @@ struct GoldRingLayerView: NSViewRepresentable {
         view.layer!.addSublayer(goldContainer)
         coord.goldContainer = goldContainer
 
-        // Conic gradient
+        // Gradient clip container — the ring mask lives HERE (stays fixed)
+        // The gradient sublayer rotates inside it without rotating the mask.
+        let gradientClipContainer = CALayer()
+        gradientClipContainer.frame = bounds
+        gradientClipContainer.contentsScale = scale
+
+        let gradientRingMask = CAShapeLayer()
+        gradientRingMask.path = Self.ringPath(in: bounds)
+        gradientRingMask.fillRule = .evenOdd
+        gradientRingMask.fillColor = CGColor(gray: 1, alpha: 1)
+        gradientRingMask.frame = bounds
+        gradientRingMask.contentsScale = scale
+        gradientClipContainer.mask = gradientRingMask
+
+        // Conic gradient (rotation applied to THIS layer only — mask stays fixed)
         let gradientLayer = CAGradientLayer()
         gradientLayer.type = .conic
         gradientLayer.startPoint = CGPoint(x: 0.5, y: 0.5)
@@ -46,17 +68,9 @@ struct GoldRingLayerView: NSViewRepresentable {
         gradientLayer.locations = Self.baseLocations.map { NSNumber(value: $0) }
         gradientLayer.frame = bounds
         gradientLayer.contentsScale = scale
+        gradientClipContainer.addSublayer(gradientLayer)
 
-        // Mask gradient to ring shape
-        let gradientRingMask = CAShapeLayer()
-        gradientRingMask.path = Self.ringPath(in: bounds)
-        gradientRingMask.fillRule = .evenOdd
-        gradientRingMask.fillColor = CGColor(gray: 1, alpha: 1)
-        gradientRingMask.frame = bounds
-        gradientRingMask.contentsScale = scale
-        gradientLayer.mask = gradientRingMask
-
-        goldContainer.addSublayer(gradientLayer)
+        goldContainer.addSublayer(gradientClipContainer)
         coord.gradientLayer = gradientLayer
 
         // Specular highlight (inner edge strip: 9pt to 10pt inset)
