@@ -1,4 +1,5 @@
 import AppKit
+import IOSurface
 import QuartzCore
 import SwiftUI
 
@@ -28,6 +29,7 @@ private final class FlippedLayerView: NSView {
 struct GoldRingLayerView: NSViewRepresentable {
     let minute: Int
     let second: Int
+    let isActive: Bool
 
     func makeCoordinator() -> Coordinator { Coordinator() }
 
@@ -74,14 +76,17 @@ struct GoldRingLayerView: NSViewRepresentable {
         goldContainer.addSublayer(noiseLayer)
         coord.noiseLayer = noiseLayer
 
-        // Create renderer and render initial frame
+        // Create renderer and render initial frame (async IOSurface)
         let renderer = GoldNoiseRenderer()
         coord.renderer = renderer
-        if let image = renderer?.renderFrame(size: bounds.size) {
-            CATransaction.begin()
-            CATransaction.setDisableActions(true)
-            noiseLayer.contents = image
-            CATransaction.commit()
+        renderer?.renderFrame { [weak coord] surface in
+            DispatchQueue.main.async {
+                guard let coord = coord else { return }
+                CATransaction.begin()
+                CATransaction.setDisableActions(true)
+                coord.noiseLayer?.contents = surface
+                CATransaction.commit()
+            }
         }
 
         // Specular highlight (inner edge strip: 9pt to 10pt inset)
@@ -120,16 +125,18 @@ struct GoldRingLayerView: NSViewRepresentable {
         let reduceMotion = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
         coord.reduceMotion = reduceMotion
 
-        if !reduceMotion {
+        if !reduceMotion && isActive {
             let timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak coord] _ in
                 guard let coord = coord,
-                      let renderer = coord.renderer,
-                      let noiseLayer = coord.noiseLayer else { return }
-                if let image = renderer.renderFrame(size: bounds.size) {
-                    CATransaction.begin()
-                    CATransaction.setDisableActions(true)
-                    noiseLayer.contents = image
-                    CATransaction.commit()
+                      let renderer = coord.renderer else { return }
+                renderer.renderFrame { [weak coord] surface in
+                    DispatchQueue.main.async {
+                        guard let coord = coord else { return }
+                        CATransaction.begin()
+                        CATransaction.setDisableActions(true)
+                        coord.noiseLayer?.contents = surface
+                        CATransaction.commit()
+                    }
                 }
             }
             RunLoop.main.add(timer, forMode: .common)
@@ -138,6 +145,7 @@ struct GoldRingLayerView: NSViewRepresentable {
 
         coord.lastMinute = minute
         coord.lastSecond = second
+        coord.lastIsActive = isActive
 
         return view
     }
@@ -167,6 +175,35 @@ struct GoldRingLayerView: NSViewRepresentable {
 
         coord.lastMinute = minute
         coord.lastSecond = second
+
+        // Timer lifecycle: start/stop based on isActive
+        if isActive != coord.lastIsActive {
+            coord.lastIsActive = isActive
+            if isActive && !coord.reduceMotion {
+                // Restart timer
+                if coord.noiseTimer == nil {
+                    let timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak coord] _ in
+                        guard let coord = coord,
+                              let renderer = coord.renderer else { return }
+                        renderer.renderFrame { [weak coord] surface in
+                            DispatchQueue.main.async {
+                                guard let coord = coord else { return }
+                                CATransaction.begin()
+                                CATransaction.setDisableActions(true)
+                                coord.noiseLayer?.contents = surface
+                                CATransaction.commit()
+                            }
+                        }
+                    }
+                    RunLoop.main.add(timer, forMode: .common)
+                    coord.noiseTimer = timer
+                }
+            } else if !isActive {
+                // Stop timer
+                coord.noiseTimer?.invalidate()
+                coord.noiseTimer = nil
+            }
+        }
     }
 
     // MARK: - Coordinator
@@ -179,6 +216,7 @@ struct GoldRingLayerView: NSViewRepresentable {
         var progressMask: CAShapeLayer?
         var lastMinute: Int = -1
         var lastSecond: Int = -1
+        var lastIsActive: Bool = true
         var reduceMotion: Bool = false
 
         deinit {

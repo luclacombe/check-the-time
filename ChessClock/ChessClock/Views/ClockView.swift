@@ -13,6 +13,7 @@ struct ClockView: View {
     @State private var showOnboarding = OnboardingService.shouldShowOnboarding
     @State private var viewMode: ViewMode = .clock
     @State private var isHovering = false
+    @State private var isPopoverVisible = true
 
     init(clockService: ClockService) {
         self.clockService = clockService
@@ -23,7 +24,7 @@ struct ClockView: View {
         ZStack {
             // Ring layer — only in tree when clock mode (CALayer animations restart on re-insert)
             if viewMode == .clock {
-                GoldRingLayerView(minute: clockService.state.minute, second: clockService.state.second)
+                GoldRingLayerView(minute: clockService.state.minute, second: clockService.state.second, isActive: isPopoverVisible)
                     .frame(width: 300, height: 300)
                     .transition(.opacity)
             }
@@ -67,10 +68,12 @@ struct ClockView: View {
         // Reset to clock on popover reopen; pause timer on popover close
         .background(WindowObserver(
             onBecomeKey: {
+                isPopoverVisible = true
                 viewMode = .clock
                 clockService.resume()
             },
             onResignKey: {
+                isPopoverVisible = false
                 clockService.pause()
             }
         ))
