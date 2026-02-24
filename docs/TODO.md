@@ -20,6 +20,13 @@ _Empty — next sprint: Sprint 4 (Puzzle Face)._
 
 ## Done
 
+### Sprint 4P — Ring Performance (Zero-Copy IOSurface + Timer Lifecycle) ✓
+
+- [x] **S4P-1: GoldNoiseRenderer — IOSurface zero-copy + async rendering** — Rewrote Metal pipeline with double-buffered IOSurface-backed textures, async GPU completion, eliminated all CPU readback. `30ff743`
+- [x] **S4P-2: GoldRingLayerView + ClockView — Timer lifecycle + IOSurface integration** — Added `isActive` parameter, timer pauses when popover closes, adapted to async IOSurface rendering. `5444fc4`
+- [x] **S4P-3: ClockService — Lazy timer start** — Removed eager `startTimer()` from init(). `b74d3c7`
+- [x] **S4P-4: Docs update** — Updated DESIGN.md and Views/CLAUDE.md with IOSurface architecture.
+
 _Sprint 4 ring tasks archived to docs/archive/TODO-done-sprint-4-ring.md_
 _Sprint 3.95 tasks archived to docs/archive/TODO-done-sprint-3.95.md_
 _v0.5.1 tasks archived to docs/archive/TODO-done-v0.5.1.md_

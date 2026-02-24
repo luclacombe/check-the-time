@@ -5,6 +5,25 @@
 
 ---
 
+## 2026-02-24 — Sprint 4P: Ring Performance (Zero-Copy IOSurface + Timer Lifecycle)
+**Goal:** Eliminate 3-4% CPU when popover is closed and reduce open-state CPU from 4-5% to <0.5%
+**Completed:**
+- S4P-1 GoldNoiseRenderer rewrite — double-buffered IOSurface-backed MTLTextures, async GPU completion via addCompletedHandler, eliminated CGImage readback pipeline (getBytes, CGContext, waitUntilCompleted)
+- S4P-2 GoldRingLayerView + ClockView — added `isActive: Bool` parameter driven by WindowObserver popover visibility; timer invalidates when popover closes (zero CPU/GPU when invisible), restarts on reopen; adapted to async IOSurface rendering
+- S4P-3 ClockService lazy timer — removed startTimer() from init(); timer only starts on first resume() call
+- S4P-4 Docs update — DESIGN.md performance architecture, Views/CLAUDE.md file descriptions
+**Blocked / Skipped:**
+- None
+**Agents deployed:** 3 (Wave 1: S4P-1 + S4P-3 in parallel; Wave 2: S4P-2 sequential after S4P-1)
+**Next session:** Run app and verify CPU with Activity Monitor. Run `/plan-sprint` for Sprint 4 (Puzzle Face).
+**Notes:**
+- Root cause of 3-4% idle CPU: noise Timer (10 FPS) never stopped when popover closed — Metal compute + synchronous readback ran continuously while invisible
+- Root cause of 4-5% open CPU: per-frame texture allocation, synchronous waitUntilCompleted(), CPU pixel readback (getBytes + CGContext + CGImage)
+- IOSurface zero-copy: GPU writes directly to IOSurface memory, CALayer.contents accepts IOSurface natively — no CPU involved in the display path
+- All 116 tests pass, build succeeds
+
+---
+
 ## 2026-02-24 — Sprint 4N: Perlin Noise Ring
 **Goal:** Replace CAGradientLayer + locations drift with GPU-rendered animated simplex noise mapped to gold colors
 **Completed:**
