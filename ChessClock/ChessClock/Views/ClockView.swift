@@ -84,6 +84,14 @@ struct ClockView: View {
             // Layer 1: chess board (280×280) — blurs on hover (Glance face)
             BoardView(fen: clockService.state.fen, isFlipped: clockService.state.isFlipped)
                 .frame(width: 280, height: 280)
+                // Inner shadow: ring appears to cast shadow onto board surface
+                .overlay(
+                    RoundedRectangle(cornerRadius: ChessClockRadius.board)
+                        .stroke(Color.black, lineWidth: 6)
+                        .blur(radius: 4)
+                        .mask(RoundedRectangle(cornerRadius: ChessClockRadius.board))
+                        .opacity(0.22)
+                )
                 .blur(radius: isHovering ? 8 : 0)
                 .animation(.easeInOut(duration: isHovering ? 0.2 : 0.15), value: isHovering)
 

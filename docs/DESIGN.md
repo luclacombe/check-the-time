@@ -120,11 +120,13 @@ The default state. What the user sees 95% of the time.
 
 - Board: 280×280, centered
 - Ring: Gold gradient (`accentGoldLight` → `accentGoldDeep`, topLeading→bottomTrailing), filling clockwise from top-center using filled shape architecture (even-odd area between two concentric rounded rects + pie wedge mask). Unfilled track visible at 15% gray. Ring inner edge is flush with the board edge (no gap).
-- Tick marks: 4 cardinal points (top-center, right-center, bottom-center, left-center). Rendered **on top of** the ring fill (z-order above the gold fill and gray track) — always visible regardless of ring progress. Each tick is a single-layer gradient bar: `LinearGradient` along the tick's length from `Color.white.opacity(0.40)` at the outer end (toward content edge) to `Color.white.opacity(0.15)` at the inner end (toward board). `.butt` lineCap, no outline or halo. Positioned at ring outer edge (2pt) to inner edge (10pt) — spanning full ring width as flat rectangular bars. Sized for clear legibility at a glance (see `tick.length`, `tick.width` tokens).
+- Tick marks: 4 cardinal points (top-center, right-center, bottom-center, left-center). Rendered **on top of** the ring fill and pulse layers (z-order above everything except the content clip) — always visible regardless of ring progress. Each tick is a single-layer gradient bar: `LinearGradient` along the tick's length from `Color.white.opacity(0.70)` at the outer end (toward content edge) to `Color.white.opacity(0.30)` at the inner end (toward board). `.butt` lineCap. Each tick casts a centered shadow (`Color.black.opacity(0.40)`, radius 1.5pt) onto the ring surface below, making ticks appear raised/embossed. Positioned at ring outer edge (2pt) to inner edge (10pt) — spanning full ring width. Sized for clear legibility at a glance (see `tick.length`, `tick.width` tokens).
 - AM: White's perspective (rank 1 at bottom). PM: Board flipped (rank 8 at bottom).
 - **No text. No labels. No visible affordances.** Pure ambient display.
 
-**Ring animation:** The ring sweeps continuously — progress is computed as `(minute × 60 + second) / 3600`, advancing every second with linear interpolation. **Traveling light pulses** (2 concurrent, staggered) flow from 12 o'clock through the filled arc. Each pulse is a localized bright streak (~12% of filled arc length) with a soft glow halo, creating the illusion of light flowing through a glass tube. Transit duration scales with fill: 1.5s at minute 1, ~5s at minute 59. Base gold gradient is always at full opacity; the tube has a cylindrical depth effect from specular/shadow overlays. (See Sprint 3.9 spec for full parameters.)
+**Ring animation:** The ring sweeps continuously — progress is computed as `(minute × 60 + second) / 3600`, advancing every second with linear interpolation (`.animation(.linear(duration: 1.0), value: second)` scoped to the fill group only). **Three diffused energy pulses** at different speeds (3.0s, 4.5s, 7.0s) flow one-directionally from 12 o'clock through the filled arc. Each pulse is a heavily blurred glow (5–8pt blur, `.round` lineCap) — no sharp edges. Pulses fade in smoothly at the 12 o'clock entry. The `ProgressWedge` mask clips pulses at the diagonal progress edge (trim is NOT clamped to progress — the mask handles it). Non-integer-ratio speeds create organic brightness variation as pulses overlap and separate. Base gold gradient is always at full opacity; glass tube overlays (inner specular + outer shadow) add cylindrical depth. Board has a subtle inner shadow (6pt stroke, 4pt blur, 22% opacity) where the ring meets it, creating 3D depth. Tick marks are rendered above all ring layers with a centered shadow so they appear raised.
+
+**Critical implementation note (Sprint 3.95 learning):** The `.animation` modifier for the ring sweep MUST be scoped to only the fill layers (gold gradient + tube overlays inside a Group), never applied to the parent ZStack. Applying it broadly causes SwiftUI's implicit animation to fight with TimelineView-driven pulse updates, producing catastrophic jitter. The pulse layer uses `TimelineView(.animation)` with simple constant-speed phase math — no sin() variation, no erratic cycle durations.
 
 ---
 
@@ -582,7 +584,7 @@ Tokens marked ★ are derived from the concentric rule above — do not set them
 | `tick.width` | 2.5pt | Cardinal tick mark stroke (single-layer gradient bar, no outline) |
 | `ring.outerEdge` | 2pt | Ring outer edge distance from content edge (`ringInset − ringStroke/2`) |
 | `ring.innerEdge` | 10pt | Ring inner edge distance from content edge (`ringInset + ringStroke/2`) |
-| `shimmer.minOpacity` | 0.50 | **Deprecated** — shimmer replaced by traveling light pulses (Sprint 3.9). Token retained for backward compatibility but unused in current ring animation. |
+| `shimmer.minOpacity` | — | **Removed** (Sprint 3.95) — shimmer replaced by diffused energy pulses. Token and `ChessClockPulse` enum deleted from `DesignTokens.swift`. |
 
 ### Animations
 
@@ -593,7 +595,7 @@ Tokens marked ★ are derived from the concentric rule above — do not set them
 | `anim.standard` | 0.25s spring(response: 0.3, dampingFraction: 0.8) | Overlays, piece slides, state transitions |
 | `anim.smooth` | 0.4s easeInOut | Board resize, face changes |
 | `anim.ring` | 1.0s linear | Continuous minute ring sweep (interpolates between each second) |
-| `anim.shimmer` | 1.8s easeInOut, repeating | **Deprecated** — replaced by traveling light pulse animation (Sprint 3.9). Pulse transit: `1.5 + 3.5 * progress` seconds. See Sprint 3.9 spec for full parameters. |
+| `anim.shimmer` | — | **Removed** (Sprint 3.95) — replaced by three diffused energy pulses at constant speeds (3.0s, 4.5s, 7.0s). See Face 1 Ring Animation for parameters. |
 | `anim.dramatic` | 0.6s easeInOut | Hour-change piece slide |
 | `anim.wrongPulse` | 0.3s fade-out | Red flash on wrong move |
 | `anim.opponentDelay` | 0.4s | Pause before opponent auto-play |
@@ -885,29 +887,24 @@ This is a polish sprint addressing visual issues identified after Sprint 3.75. A
 
 5. Layer glow overlays: a sharp core stroke + two blurred copies (at 4pt and 8pt blur radius) for a soft, luminous halo effect.
 
-**Pulse parameters:**
+**Pulse parameters (Sprint 3.95 — final implementation):**
 
-| Parameter | Value | Notes |
-|-----------|-------|-------|
-| Pulse width | 12% of filled arc length | Relative to current progress, min 0.03 absolute to stay visible on short bars |
-| Pulse count | 2 | Staggered at 50% phase offset; second pulse naturally hidden on very short bars |
-| Transit duration | `1.5 + 3.5 × progress` seconds | 1.5s at minute 1, ~5s at minute 59. Slower = less distracting. |
-| Variation | ±0.3s per pulse per cycle | Slight randomness in duration so pulses don't feel mechanical |
-| Core color | `Color.white.opacity(0.55)` | Bright white-gold center |
-| Glow color | `accentGoldLight.opacity(0.35)` | Warm gold halo |
-| Glow blur | 4pt (inner) + 8pt (outer) | Two-layer glow |
-| Drive mechanism | `TimelineView(.animation)` | Continuous, non-state-based animation; compute pulse position from elapsed time |
-| Easing | Linear transit, smooth fade at leading/trailing edges | The pulse itself has soft opacity falloff via gradient stops in the stroke |
+| Pulse | Speed | Width | Color | LineWidth | Blur |
+|-------|-------|-------|-------|-----------|------|
+| Primary warm glow | 4.5s | 6% | `accentGoldLight.opacity(0.45)` | ringStroke + 6 (14pt) | 6pt |
+| Slow ambient wash | 7.0s | 8% | `white.opacity(0.28)` | ringStroke + 4 (12pt) | 8pt |
+| Fast accent spark | 3.0s | 4% | `accentGoldLight.opacity(0.35)` | ringStroke (8pt) | 5pt |
+
+All pulses use `.round` lineCap and are driven by `TimelineView(.animation)` with simple constant-speed phase math. Each pulse fades in over its first width of travel (`opacity = min(1, center/width)`). The `ProgressWedge` mask clips at the diagonal progress edge — `trimTo` is NOT clamped to `progress`.
 
 **Pulse lifecycle:**
-- Pulse starts at angular position 0 (12 o'clock)
+- Pulse enters at 12 o'clock with smooth opacity fade-in
 - Travels clockwise at constant rate through the filled arc
-- When pulse leading edge reaches `progress`, it slides off the end (trailing edge exits)
-- Next pulse fires after a brief gap (~0.2s)
-- Two pulses run concurrently, offset by half the cycle duration
-- Each cycle's duration varies slightly (±0.3s random per cycle) for organic feel
+- ProgressWedge mask clips at diagonal end — pulse maintains full width to the edge
+- Pulse exits and wraps back to 12 o'clock for the next lap
+- Three non-integer-ratio speeds (3.0, 4.5, 7.0s) create ever-changing overlap patterns
 
-**What gets removed:** The `shimmerOn` state, `shimmerMinOpacity` token, and the global opacity animation on the gradient fill layer. The base gold gradient fill is now always at full opacity.
+**What was removed (vs Sprint 3.9):** `ChessClockPulse` token enum, `ChessClockTube.centerHighlight`, `@State shimmerOn`, sharp core strokes, per-pulse blur stacking (was 6 blur ops → now 3).
 
 #### Ring Base Appearance — Glass Tube Effect
 
@@ -921,7 +918,7 @@ This is a polish sprint addressing visual issues identified after Sprint 3.75. A
 
 2. **Outer-edge shadow:** A thin dark strip along the outer edge (inset 2pt to 3pt — 1pt wide at outer edge). Filled with `Color.black.opacity(0.08)`. Subtle darkening that creates the tube's shadow side.
 
-3. **Center highlight band:** A 2pt-wide strip through the ring's center (inset 5pt to 7pt). Filled with `Color.white.opacity(0.08)`. Very subtle — adds a rounded highlight that implies cylindrical shape.
+3. **Center highlight band:** A 2pt-wide strip through the ring's center (inset 5pt to 7pt). Filled with `Color.white.opacity(0.08)`. Very subtlOk e — adds a rounded highlight that implies cylindrical shape.
 
 **Integration with pulses:** The glass tube overlays sit **below** the traveling pulse layer. The pulse travels on top of the tube, creating the effect of light catching the tube's surface as it passes. The pulse glow blends naturally with the specular highlight.
 
@@ -1005,13 +1002,10 @@ After all visual changes are complete, audit every glassy/material element for c
 | Token | Old | New | Reason |
 |-------|-----|-----|--------|
 | `board.detail` | 176pt | 164pt | Smaller Detail face board for breathing room |
-| `shimmer.minOpacity` | 0.50 | REMOVED | Shimmer replaced by traveling pulses |
-| `anim.shimmer` | 1.8s easeInOut repeating | REMOVED | Replaced by pulse animation |
-| `anim.pulse` | NEW: see pulse params | — | Traveling pulse transit: `1.5 + 3.5 × progress` seconds |
-| `ring.pulseWidth` | NEW: 0.12 | — | Pulse width as fraction of filled arc |
-| `ring.pulseCount` | NEW: 2 | — | Number of concurrent pulses |
-| `ring.pulseCoreColor` | NEW: `white.opacity(0.55)` | — | Pulse center brightness |
-| `ring.pulseGlowColor` | NEW: `accentGoldLight.opacity(0.35)` | — | Pulse halo color |
+| `shimmer.minOpacity` | 0.50 | REMOVED | Shimmer replaced by energy pulses |
+| `anim.shimmer` | 1.8s easeInOut repeating | REMOVED | Replaced by TimelineView pulse animation |
+| `ChessClockPulse` enum | Sprint 3.9 | REMOVED (Sprint 3.95) | Replaced by inline pulse params in MinuteBezelView |
+| `ChessClockTube.centerHighlight` | `white.opacity(0.08)` | REMOVED (Sprint 3.95) | Imperceptible, unnecessary render pass |
 | `ring.specularHighlight` | NEW: `white.opacity(0.20)` | — | Inner-edge tube highlight |
 | `ring.outerShadow` | NEW: `black.opacity(0.08)` | — | Outer-edge tube shadow |
 | `cta.detail.font` | 12pt | 11pt | Slightly smaller Detail CTA |

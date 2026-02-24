@@ -159,94 +159,92 @@ struct MinuteBezelView: View {
 
     var body: some View {
         ZStack {
-            // Track layer: full ring in muted gray
+            // 1. Track layer: full ring in muted gray
             FilledRingTrack()
                 .fill(ChessClockColor.ringTrack, style: FillStyle(eoFill: true))
 
-            // Fill layer: gold gradient masked by progress wedge
+            // 2. Animated fill group (scoped animation for smooth sweep)
+            fillGroup
+                .animation(.linear(duration: 1.0), value: second)
+
+            // 3. Energy pulse — one-directional, constant width, glowing
+            //    Uses TimelineView (safe — outside the .animation scope)
+            if progress > 0 {
+                TimelineView(.animation) { timeline in
+                    energyPulse(elapsed: timeline.date.timeIntervalSinceReferenceDate)
+                }
+            }
+
+            // 4. Cardinal tick marks on top (static)
+            tickMarks
+        }
+    }
+
+    // MARK: - Fill Group
+
+    private var fillGroup: some View {
+        ZStack {
             FilledRingTrack()
                 .fill(ChessClockColor.ringGradient, style: FillStyle(eoFill: true))
                 .mask(ProgressWedge(progress: progress))
 
-            // Glass tube overlays — masked by progress wedge
-            // 1. Inner-edge specular highlight
             FilledRingTrack(outerInset: 9, innerInset: 10)
                 .fill(ChessClockTube.specularHighlight, style: FillStyle(eoFill: true))
                 .mask(ProgressWedge(progress: progress))
 
-            // 2. Outer-edge shadow
             FilledRingTrack(outerInset: 2, innerInset: 3)
                 .fill(ChessClockTube.outerShadow, style: FillStyle(eoFill: true))
                 .mask(ProgressWedge(progress: progress))
-
-            // 3. Center highlight
-            FilledRingTrack(outerInset: 5, innerInset: 7)
-                .fill(ChessClockTube.centerHighlight, style: FillStyle(eoFill: true))
-                .mask(ProgressWedge(progress: progress))
-
-            // Traveling pulse layer — above tube overlays, below tick marks
-            if progress > 0 {
-                TimelineView(.animation) { timeline in
-                    pulseLayer(elapsed: timeline.date.timeIntervalSinceReferenceDate)
-                }
-            }
-
-            // Cardinal tick marks on top
-            tickMarks
         }
-        .animation(.linear(duration: 1.0), value: second)
     }
 
-    // MARK: - Pulse Layer
+    // MARK: - Energy Pulse
 
-    /// Renders two concurrent traveling light pulses along the ring centerline.
-    private func pulseLayer(elapsed: Double) -> some View {
+    /// Three overlapping glowing pulses at different speeds create an organic
+    /// energy-flow effect. All are heavily blurred — no sharp edges.
+    /// The ProgressWedge mask handles the diagonal end clipping, not the trim math.
+    private func energyPulse(elapsed: Double) -> some View {
         let prog = Double(progress)
-        // Cycle duration scales with fill: 1.5s at low progress, ~5s at full
-        let rawCycle = ChessClockPulse.baseDuration + ChessClockPulse.scaleDuration * prog
-        // Organic variation
-        let cycleDuration = rawCycle + sin(elapsed * 0.7) * 0.3
-        let safeCycle = max(cycleDuration, 0.1)  // avoid division by zero
-
-        // Pulse width scales with progress
-        let pulseWidth = max(ChessClockPulse.width * prog, Double(ChessClockPulse.minAbsoluteWidth))
-
-        // Phase for pulse 1 and pulse 2 (offset by 50%)
-        let phase1 = (elapsed / safeCycle).truncatingRemainder(dividingBy: 1.0)
-        let phase2 = (phase1 + 0.5).truncatingRemainder(dividingBy: 1.0)
 
         return ZStack {
-            pulseStrokes(phase: phase1, progress: prog, pulseWidth: pulseWidth)
-            pulseStrokes(phase: phase2, progress: prog, pulseWidth: pulseWidth)
+            // Primary warm glow — medium speed
+            singlePulse(elapsed: elapsed, speed: 4.5, width: 0.06,
+                         color: ChessClockColor.accentGoldLight.opacity(0.45),
+                         lineW: ChessClockSize.ringStroke + 6, blurR: 6, prog: prog)
+
+            // Slow ambient wash — wider, softer
+            singlePulse(elapsed: elapsed, speed: 7.0, width: 0.08,
+                         color: Color.white.opacity(0.28),
+                         lineW: ChessClockSize.ringStroke + 4, blurR: 8, prog: prog)
+
+            // Fast accent spark — narrow, bright
+            singlePulse(elapsed: elapsed, speed: 3.0, width: 0.04,
+                         color: ChessClockColor.accentGoldLight.opacity(0.35),
+                         lineW: ChessClockSize.ringStroke, blurR: 5, prog: prog)
         }
         .mask(ProgressWedge(progress: progress))
     }
 
-    /// Renders the three layers (core, inner glow, outer glow) for a single pulse.
-    private func pulseStrokes(phase: Double, progress prog: Double, pulseWidth: Double) -> some View {
-        let trimPos = phase * (prog + pulseWidth)
-        let trimFrom = max(0, trimPos - pulseWidth)
-        let trimTo = min(prog, trimPos)
-        let lineW = ChessClockSize.ringStroke
+    /// Renders a single diffused energy pulse. trimTo extends past prog — the
+    /// ProgressWedge mask clips at the diagonal end. Opacity fades in smoothly
+    /// as the pulse enters at 12 o'clock for a gentle start.
+    private func singlePulse(elapsed: Double, speed: Double, width: Double,
+                              color: Color, lineW: CGFloat, blurR: CGFloat,
+                              prog: Double) -> some View {
+        let phase = (elapsed / speed).truncatingRemainder(dividingBy: 1.0)
+        let range = prog + width
+        let center = phase * range
+        let trimFrom = CGFloat(max(0, center - width / 2))
+        let trimTo = CGFloat(min(1.0, center + width / 2))
 
-        return ZStack {
-            // 1. Core
-            RingCenterlinePath()
-                .trim(from: CGFloat(trimFrom), to: CGFloat(trimTo))
-                .stroke(ChessClockPulse.coreColor, style: StrokeStyle(lineWidth: lineW, lineCap: .butt))
+        // Smooth fade-in: pulse brightens over its first width of travel
+        let fadeIn = min(1.0, center / width)
 
-            // 2. Inner glow
-            RingCenterlinePath()
-                .trim(from: CGFloat(trimFrom), to: CGFloat(trimTo))
-                .stroke(ChessClockPulse.glowColor, style: StrokeStyle(lineWidth: lineW, lineCap: .butt))
-                .blur(radius: ChessClockPulse.innerGlowBlur)
-
-            // 3. Outer glow
-            RingCenterlinePath()
-                .trim(from: CGFloat(trimFrom), to: CGFloat(trimTo))
-                .stroke(ChessClockPulse.glowColor, style: StrokeStyle(lineWidth: lineW, lineCap: .butt))
-                .blur(radius: ChessClockPulse.outerGlowBlur)
-        }
+        return RingCenterlinePath()
+            .trim(from: trimFrom, to: max(trimFrom, trimTo))
+            .stroke(color, style: StrokeStyle(lineWidth: lineW, lineCap: .round))
+            .blur(radius: blurR)
+            .opacity(fadeIn)
     }
 
     // MARK: - Tick Marks
@@ -298,7 +296,8 @@ struct MinuteBezelView: View {
     }
 
     /// Draws a single tick mark with a gradient along its length.
-    /// Outer end (toward content edge) is bright, inner end (toward board) is dim.
+    /// Brighter at the outer edge, dimmer toward the board. Casts a shadow
+    /// onto the ring below so ticks appear raised above the gold surface.
     private func tickMark(from: CGPoint, to: CGPoint, width: CGFloat,
                           gradientStart: UnitPoint, gradientEnd: UnitPoint) -> some View {
         Path { path in
@@ -307,12 +306,13 @@ struct MinuteBezelView: View {
         }
         .stroke(
             LinearGradient(
-                colors: [Color.white.opacity(0.40), Color.white.opacity(0.15)],
+                colors: [Color.white.opacity(0.70), Color.white.opacity(0.30)],
                 startPoint: gradientStart,
                 endPoint: gradientEnd
             ),
             style: StrokeStyle(lineWidth: width, lineCap: .butt)
         )
+        .shadow(color: Color.black.opacity(0.40), radius: 1.5, x: 0, y: 0)
     }
 }
 

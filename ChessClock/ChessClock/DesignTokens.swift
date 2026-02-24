@@ -97,27 +97,11 @@ enum ChessClockAnimation {
     static let dramatic = Animation.easeInOut(duration: 0.6)
 }
 
-// MARK: - Ring Pulse Tokens
-
-enum ChessClockPulse {
-    static let width: CGFloat = 0.12           // fraction of filled arc
-    static let count: Int = 2                   // concurrent pulses
-    static let baseDuration: Double = 1.5       // transit seconds at progress ≈ 0
-    static let scaleDuration: Double = 3.5      // added seconds at progress = 1.0
-    // duration = baseDuration + scaleDuration × progress
-    static let coreColor = Color.white.opacity(0.55)
-    static let glowColor = ChessClockColor.accentGoldLight.opacity(0.35)
-    static let innerGlowBlur: CGFloat = 4
-    static let outerGlowBlur: CGFloat = 8
-    static let minAbsoluteWidth: CGFloat = 0.03 // minimum trim width for very short bars
-}
-
 // MARK: - Ring Tube Tokens
 
 enum ChessClockTube {
     static let specularHighlight = Color.white.opacity(0.20)  // inner-edge strip
     static let outerShadow = Color.black.opacity(0.08)        // outer-edge strip
-    static let centerHighlight = Color.white.opacity(0.08)    // center band
 }
 
 // MARK: - Detail CTA Tokens
