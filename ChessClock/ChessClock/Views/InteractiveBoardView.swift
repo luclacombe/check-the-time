@@ -184,7 +184,11 @@ struct InteractiveBoardView: View {
 
             // Promotion picker overlay
             if promotionFrom != nil {
-                PromotionPickerView(color: gameState.activeColor) { pieceType in
+                PromotionPickerView(
+                    color: gameState.activeColor,
+                    promotionFile: promotionFrom?.fileIndex ?? 0,
+                    isFlipped: isFlipped
+                ) { pieceType in
                     if let pf = promotionFrom, let pt = promotionTo {
                         let move = ChessMove(from: pf, to: pt, promotion: pieceType)
                         commitMove(move)
