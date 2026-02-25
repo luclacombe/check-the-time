@@ -43,44 +43,44 @@ final class GameReplayViewTests: XCTestCase {
 
     func testZone_before() {
         // puzzleStartPosIndex = 39, posIndex = 25 < 39 → .before
-        XCTAssertEqual(ReplayZone.classify(posIndex: 25, puzzleStartPosIndex: 39), .before)
+        XCTAssertEqual(ReplayZone.classify(posIndex: 25, puzzleStartPosIndex: 39, totalMoves: 50), .before)
     }
 
     func testZone_start() {
-        XCTAssertEqual(ReplayZone.classify(posIndex: 39, puzzleStartPosIndex: 39), .start)
+        XCTAssertEqual(ReplayZone.classify(posIndex: 39, puzzleStartPosIndex: 39, totalMoves: 50), .start)
     }
 
     func testZone_after() {
-        // posIndex = 50 > 39 → .after
-        XCTAssertEqual(ReplayZone.classify(posIndex: 50, puzzleStartPosIndex: 39), .after)
+        // posIndex = 45 > 39, < 50 → .after
+        XCTAssertEqual(ReplayZone.classify(posIndex: 45, puzzleStartPosIndex: 39, totalMoves: 50), .after)
     }
 
     /// hour 1 → psi = N − 1 − 0 = N − 1 (last position before checkmate)
     func testZone_hour1_start() {
         // e.g. N=50, psi=49, posIndex 49 → .start
-        XCTAssertEqual(ReplayZone.classify(posIndex: 49, puzzleStartPosIndex: 49), .start)
+        XCTAssertEqual(ReplayZone.classify(posIndex: 49, puzzleStartPosIndex: 49, totalMoves: 50), .start)
     }
 
     /// posIndex 0 (game start) is .before for any hour that isn't a 1-move game
     func testZone_gameStart_isBefore_forMostHours() {
         // psi = 40 (typical): posIndex 0 < 40 → .before
-        XCTAssertEqual(ReplayZone.classify(posIndex: 0, puzzleStartPosIndex: 40), .before)
+        XCTAssertEqual(ReplayZone.classify(posIndex: 0, puzzleStartPosIndex: 40, totalMoves: 50), .before)
     }
 
     func testZone_hour12_start() {
         // hour 12 → (hour-1)*2 = 22 → psi = N-23. For N=50, psi=27
-        XCTAssertEqual(ReplayZone.classify(posIndex: 27, puzzleStartPosIndex: 27), .start)
+        XCTAssertEqual(ReplayZone.classify(posIndex: 27, puzzleStartPosIndex: 27, totalMoves: 50), .start)
     }
 
     func testZone_hour12_after() {
         // posIndex 28 > 27 → .after
-        XCTAssertEqual(ReplayZone.classify(posIndex: 28, puzzleStartPosIndex: 27), .after)
+        XCTAssertEqual(ReplayZone.classify(posIndex: 28, puzzleStartPosIndex: 27, totalMoves: 50), .after)
     }
 
-    /// Checkmate position (posIndex == totalMoves) is always .after
-    func testZone_checkmate_isAfter() {
-        // totalMoves = 50, psi = 39; posIndex 50 > 39 → .after
-        XCTAssertEqual(ReplayZone.classify(posIndex: 50, puzzleStartPosIndex: 39), .after)
+    /// Checkmate position (posIndex == totalMoves) is always .checkmate
+    func testZone_checkmate() {
+        // totalMoves = 50, psi = 39; posIndex 50 == totalMoves → .checkmate
+        XCTAssertEqual(ReplayZone.classify(posIndex: 50, puzzleStartPosIndex: 39, totalMoves: 50), .checkmate)
     }
 
     // MARK: - 2. Move labels (6 tests)
@@ -200,9 +200,10 @@ final class GameReplayViewTests: XCTestCase {
 
     // MARK: - 5. Zone label text (3 tests)
 
-    func testZoneLabel_before() { XCTAssertEqual(ReplayZone.before.label, "Game context") }
-    func testZoneLabel_start()  { XCTAssertEqual(ReplayZone.start.label,  "Puzzle start") }
-    func testZoneLabel_after()  { XCTAssertEqual(ReplayZone.after.label,  "Solution")     }
+    func testZoneLabel_before()    { XCTAssertEqual(ReplayZone.before.label,    "Opening")   }
+    func testZoneLabel_start()     { XCTAssertEqual(ReplayZone.start.label,     "Puzzle")    }
+    func testZoneLabel_after()     { XCTAssertEqual(ReplayZone.after.label,     "Solution")  }
+    func testZoneLabel_checkmate() { XCTAssertEqual(ReplayZone.checkmate.label, "Checkmate") }
 
     // MARK: - 6. Full-position computation via computeAllPositions (5 tests)
 
