@@ -8,6 +8,7 @@ struct InfoPanelView: View {
     let onBack: () -> Void
     let onGuess: () -> Void
     let onReplay: () -> Void
+    @State private var isHovered: Bool = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -59,8 +60,13 @@ struct InfoPanelView: View {
                         .strokeBorder(Color.white.opacity(0.25), lineWidth: 0.5)
                 }
                 .shadow(color: .black.opacity(0.15), radius: 6, x: 0, y: 2)
+                .scaleEffect(isHovered ? 1.04 : 1.0)
+                .brightness(isHovered ? 0.08 : 0.0)
             }
             .buttonStyle(.plain)
+            .onHover { hovered in
+                withAnimation(.easeInOut(duration: 0.12)) { isHovered = hovered }
+            }
             .padding(.top, 6)
 
             // 3. Game metadata
