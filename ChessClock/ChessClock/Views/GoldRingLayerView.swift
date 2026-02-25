@@ -126,7 +126,7 @@ struct GoldRingLayerView: NSViewRepresentable {
         coord.reduceMotion = reduceMotion
 
         if !reduceMotion && isActive {
-            let timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak coord] _ in
+            let timer = Timer.scheduledTimer(withTimeInterval: 1.0 / 15.0, repeats: true) { [weak coord] _ in
                 guard let coord = coord,
                       let renderer = coord.renderer else { return }
                 renderer.renderFrame { [weak coord] surface in
@@ -182,7 +182,7 @@ struct GoldRingLayerView: NSViewRepresentable {
             if isActive && !coord.reduceMotion {
                 // Restart timer
                 if coord.noiseTimer == nil {
-                    let timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak coord] _ in
+                    let timer = Timer.scheduledTimer(withTimeInterval: 1.0 / 15.0, repeats: true) { [weak coord] _ in
                         guard let coord = coord,
                               let renderer = coord.renderer else { return }
                         renderer.renderFrame { [weak coord] surface in
@@ -302,27 +302,33 @@ struct GoldRingLayerView: NSViewRepresentable {
         let w = bounds.width
         let h = bounds.height
         let outerEdge: CGFloat = 2     // tick outer end
-        let innerEnd: CGFloat = 13     // 3pt past ring inner edge (10 + 3)
+        let innerEdge: CGFloat = 10    // ring inner edge
+        let innerEnd: CGFloat = 14     // 4pt past ring inner edge (10 + 4), 12pt total
         let tickW: CGFloat = 2.5
 
         struct TickDef {
             let from: CGPoint
             let to: CGPoint
+            let boardFrom: CGPoint  // ring inner edge point (shadow starts here)
         }
 
         let ticks: [TickDef] = [
             // Top (12 o'clock)
             TickDef(from: CGPoint(x: w / 2, y: outerEdge),
-                    to: CGPoint(x: w / 2, y: innerEnd)),
+                    to: CGPoint(x: w / 2, y: innerEnd),
+                    boardFrom: CGPoint(x: w / 2, y: innerEdge)),
             // Right (3 o'clock)
             TickDef(from: CGPoint(x: w - outerEdge, y: h / 2),
-                    to: CGPoint(x: w - innerEnd, y: h / 2)),
+                    to: CGPoint(x: w - innerEnd, y: h / 2),
+                    boardFrom: CGPoint(x: w - innerEdge, y: h / 2)),
             // Bottom (6 o'clock)
             TickDef(from: CGPoint(x: w / 2, y: h - outerEdge),
-                    to: CGPoint(x: w / 2, y: h - innerEnd)),
+                    to: CGPoint(x: w / 2, y: h - innerEnd),
+                    boardFrom: CGPoint(x: w / 2, y: h - innerEdge)),
             // Left (9 o'clock)
             TickDef(from: CGPoint(x: outerEdge, y: h / 2),
-                    to: CGPoint(x: innerEnd, y: h / 2)),
+                    to: CGPoint(x: innerEnd, y: h / 2),
+                    boardFrom: CGPoint(x: innerEdge, y: h / 2)),
         ]
 
         for tick in ticks {
@@ -330,7 +336,25 @@ struct GoldRingLayerView: NSViewRepresentable {
             tickPath.move(to: tick.from)
             tickPath.addLine(to: tick.to)
 
-            // Bottom layer: brighter stroke (0.85 opacity white)
+            // Lowest layer: board-surface shadow (from ring inner edge into board)
+            let boardPortionPath = CGMutablePath()
+            boardPortionPath.move(to: tick.boardFrom)
+            boardPortionPath.addLine(to: tick.to)
+
+            let boardShadow = CAShapeLayer()
+            boardShadow.path = boardPortionPath
+            boardShadow.strokeColor = CGColor(red: 1, green: 1, blue: 1, alpha: 0.01)
+            boardShadow.lineWidth = tickW
+            boardShadow.lineCap = .butt
+            boardShadow.fillColor = nil
+            boardShadow.contentsScale = scale
+            boardShadow.shadowColor = CGColor(red: 0, green: 0, blue: 0, alpha: 0.30)
+            boardShadow.shadowRadius = 2.0
+            boardShadow.shadowOpacity = 1.0
+            boardShadow.shadowOffset = .zero
+            container.addSublayer(boardShadow)
+
+            // Middle layer: brighter stroke (0.85 opacity white)
             let brightStroke = CAShapeLayer()
             brightStroke.path = tickPath
             brightStroke.strokeColor = CGColor(red: 1, green: 1, blue: 1, alpha: 0.85)
@@ -344,21 +368,41 @@ struct GoldRingLayerView: NSViewRepresentable {
             brightStroke.shadowOffset = .zero
             container.addSublayer(brightStroke)
 
-            // Top layer: dimmer stroke (0.45 opacity white) -- overlaps inner half for gradient effect
+            // Top layer: tapered gradient stroke (0.45 → 0.20) over inner half
             let midPoint = CGPoint(x: (tick.from.x + tick.to.x) / 2,
                                    y: (tick.from.y + tick.to.y) / 2)
             let dimPath = CGMutablePath()
             dimPath.move(to: midPoint)
             dimPath.addLine(to: tick.to)
 
-            let dimStroke = CAShapeLayer()
-            dimStroke.path = dimPath
-            dimStroke.strokeColor = CGColor(red: 1, green: 1, blue: 1, alpha: 0.45)
-            dimStroke.lineWidth = tickW
-            dimStroke.lineCap = .butt
-            dimStroke.fillColor = nil
-            dimStroke.contentsScale = scale
-            container.addSublayer(dimStroke)
+            let gradLayer = CAGradientLayer()
+            gradLayer.type = .axial
+            gradLayer.frame = bounds
+            gradLayer.colors = [
+                CGColor(red: 1, green: 1, blue: 1, alpha: 0.45),
+                CGColor(red: 1, green: 1, blue: 1, alpha: 0.20)
+            ]
+            // Normalized start/end points within bounds
+            if midPoint.x == tick.to.x {
+                // Vertical tick (top or bottom)
+                gradLayer.startPoint = CGPoint(x: 0.5, y: midPoint.y / h)
+                gradLayer.endPoint   = CGPoint(x: 0.5, y: tick.to.y / h)
+            } else {
+                // Horizontal tick (left or right)
+                gradLayer.startPoint = CGPoint(x: midPoint.x / w, y: 0.5)
+                gradLayer.endPoint   = CGPoint(x: tick.to.x / w, y: 0.5)
+            }
+
+            // Mask to the stroke path so only the line pixels receive the gradient
+            let maskLayer = CAShapeLayer()
+            maskLayer.path = dimPath
+            maskLayer.strokeColor = CGColor(red: 1, green: 1, blue: 1, alpha: 1.0)
+            maskLayer.lineWidth = tickW
+            maskLayer.lineCap = .butt
+            maskLayer.fillColor = nil
+            gradLayer.mask = maskLayer
+
+            container.addSublayer(gradLayer)
         }
 
         return container
