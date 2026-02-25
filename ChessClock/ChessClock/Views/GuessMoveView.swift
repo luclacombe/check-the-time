@@ -21,20 +21,20 @@ struct GuessMoveView: View {
 
     var body: some View {
         ZStack {
-            VStack(spacing: 8) {
-                header
-                contextLine
-                triesIndicator
-                boardSection
-                statusText
-            }
-            .padding(16)
+            // Board (center, 280×280)
+            boardSection
 
-            // Overlays (all inline — no new windows)
-            if showWrongFlash { wrongFlashOverlay }
-            if showSuccess    { successOverlay }
-            if showFailed     { failedOverlay }
+            // Header overlay (top of board — populated in S4-5)
+            VStack {
+                headerOverlay  // placeholder ZStack(alignment: .top)
+                Spacer()
+            }
+
+            // Result overlays
+            if showSuccess { successOverlay }
+            if showFailed  { failedOverlay }
         }
+        .frame(width: 280, height: 280)
         .onAppear { initializePuzzle() }
         .onChange(of: showSuccess) { if $0 { scheduleReviewButton() } }
         .onChange(of: showFailed)  { if $0 { scheduleReviewButton() } }
@@ -99,36 +99,26 @@ struct GuessMoveView: View {
     private var boardSection: some View {
         let currentFEN = guessService.engine?.currentFEN ?? state.game.positions[state.hour - 1]
         let boardID = guessService.engine?.currentFEN ?? "done"
-        let userCanPlay = !showWrongFlash && !isOpponentAnimating && !showSuccess && !showFailed
+        let userCanPlay = !isOpponentAnimating && !showSuccess && !showFailed
                           && guessService.engine?.isUserTurn == true
 
         return Group {
             if userCanPlay {
-                InteractiveBoardView(
-                    fen: currentFEN,
-                    isFlipped: state.isFlipped
-                ) { move in handleMove(move) }
-                .id(boardID)
+                InteractiveBoardView(fen: currentFEN, isFlipped: state.isFlipped) { move in handleMove(move) }
+                    .id(boardID)
+                    .clipShape(RoundedRectangle(cornerRadius: ChessClockRadius.puzzleBoard))
             } else {
                 BoardView(fen: currentFEN, isFlipped: state.isFlipped)
                     .id(boardID)
+                    .clipShape(RoundedRectangle(cornerRadius: ChessClockRadius.puzzleBoard))
             }
         }
-        .aspectRatio(1, contentMode: .fit)
-        .overlay(alignment: .bottom) {
-            if let opText = opponentMoveText {
-                Text("Opponent: \(opText)")
-                    .font(.caption2.weight(.medium))
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 3)
-                    .background(Color.black.opacity(0.65))
-                    .cornerRadius(5)
-                    .padding(.bottom, 6)
-                    .transition(.opacity)
-            }
-        }
-        .animation(.easeInOut(duration: 0.25), value: opponentMoveText)
+        .frame(width: 280, height: 280)
+    }
+
+    private var headerOverlay: some View {
+        // Populated in S4-5 — header overlay at top of board
+        EmptyView()
     }
 
     private var statusText: some View {
