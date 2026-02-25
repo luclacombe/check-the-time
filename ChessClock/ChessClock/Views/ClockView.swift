@@ -3,7 +3,7 @@ import SwiftUI
 
 // MARK: - View mode
 
-private enum ViewMode: Equatable { case clock, info, puzzle, replay }
+private enum ViewMode: Equatable { case clock, info, puzzle, replay, settings }
 
 // MARK: - ClockView
 
@@ -33,7 +33,8 @@ struct ClockView: View {
                     guessService: guessService,
                     onBack: { withAnimation(ChessClockAnimation.smooth) { viewMode = .clock } },
                     onGuess: { withAnimation(ChessClockAnimation.smooth) { viewMode = .puzzle } },
-                    onReplay: { withAnimation(ChessClockAnimation.smooth) { viewMode = .replay } }
+                    onReplay: { withAnimation(ChessClockAnimation.smooth) { viewMode = .replay } },
+                    onSettings: { withAnimation(ChessClockAnimation.smooth) { viewMode = .settings } }
                 )
             case .puzzle:
                 GuessMoveView(
@@ -51,6 +52,10 @@ struct ClockView: View {
                     game: clockService.state.game,
                     hour: clockService.state.hour,
                     isFlipped: clockService.state.isFlipped,
+                    onBack: { withAnimation(ChessClockAnimation.smooth) { viewMode = .info } }
+                )
+            case .settings:
+                SettingsPlaceholderView(
                     onBack: { withAnimation(ChessClockAnimation.smooth) { viewMode = .info } }
                 )
             }

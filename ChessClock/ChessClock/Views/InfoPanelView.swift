@@ -8,6 +8,7 @@ struct InfoPanelView: View {
     let onBack: () -> Void
     let onGuess: () -> Void
     let onReplay: () -> Void
+    let onSettings: () -> Void
     @State private var isHovered: Bool = false
 
     var body: some View {
@@ -32,7 +33,7 @@ struct InfoPanelView: View {
 
                 Spacer()
 
-                Button(action: {}) {
+                Button(action: onSettings) {
                     Image(systemName: "gearshape")
                         .font(.system(size: 13, weight: .medium))
                         .foregroundColor(.secondary)
