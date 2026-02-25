@@ -24,9 +24,9 @@ struct GuessMoveView: View {
             // Board (center, 280×280)
             boardSection
 
-            // Header overlay (top of board — populated in S4-5)
+            // Header overlay (top of board)
             VStack {
-                headerOverlay  // placeholder ZStack(alignment: .top)
+                headerOverlay
                 Spacer()
             }
 
@@ -41,60 +41,6 @@ struct GuessMoveView: View {
     }
 
     // MARK: - Sub-views
-
-    private var header: some View {
-        HStack {
-            Button(action: onBack) {
-                HStack(spacing: 4) {
-                    Image(systemName: "chevron.left")
-                        .font(.caption.weight(.semibold))
-                    Text("Back")
-                        .font(.caption.weight(.semibold))
-                }
-                .foregroundColor(.secondary)
-            }
-            .buttonStyle(.plain)
-
-            Spacer()
-
-            VStack(alignment: .trailing, spacing: 1) {
-                Text("\(state.game.white) vs \(state.game.black)")
-                    .font(.caption.weight(.semibold))
-                    .lineLimit(1)
-                Text("\(state.game.year)")
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
-            }
-        }
-    }
-
-    private var contextLine: some View {
-        let mating = state.game.mateBy == "white" ? "White" : "Black"
-        let movesText = state.hour == 1 ? "Mate in 1" : "\(state.hour) Moves to Checkmate"
-        return Text("\(state.hour) \(state.isAM ? "AM" : "PM") — \(movesText) — Play as \(mating)")
-            .font(.caption2)
-            .foregroundColor(.secondary)
-            .multilineTextAlignment(.center)
-    }
-
-    private var triesIndicator: some View {
-        let triesUsed = guessService.engine?.triesUsed ?? guessService.result?.triesUsed ?? 1
-        return HStack(spacing: 6) {
-            ForEach(1...3, id: \.self) { i in
-                if i < triesUsed {
-                    // Used a wrong try
-                    Circle()
-                        .fill(Color.red.opacity(0.7))
-                        .frame(width: 10, height: 10)
-                } else {
-                    // Remaining or current try
-                    Circle()
-                        .strokeBorder(Color.secondary.opacity(0.5), lineWidth: 1)
-                        .frame(width: 10, height: 10)
-                }
-            }
-        }
-    }
 
     private var boardSection: some View {
         let currentFEN = guessService.engine?.currentFEN ?? state.game.positions[state.hour - 1]
@@ -117,8 +63,66 @@ struct GuessMoveView: View {
     }
 
     private var headerOverlay: some View {
-        // Populated in S4-5 — header overlay at top of board
-        EmptyView()
+        let triesUsed = guessService.engine?.triesUsed ?? guessService.result?.triesUsed ?? 1
+        let whiteName = state.game.white.components(separatedBy: ",").first ?? state.game.white
+        let blackName = state.game.black.components(separatedBy: ",").first ?? state.game.black
+
+        return VStack(spacing: 0) {
+            // Line 1: back chevron + player names
+            HStack {
+                Button(action: onBack) {
+                    Image(systemName: "chevron.left")
+                        .font(ChessClockType.caption)
+                        .foregroundColor(Color.white.opacity(0.85))
+                        .frame(width: 28, height: 28)
+                }
+                .buttonStyle(.plain)
+
+                Spacer()
+
+                Text("\(whiteName) vs \(blackName)")
+                    .font(ChessClockType.caption)
+                    .foregroundColor(Color.white.opacity(0.85))
+                    .lineLimit(1)
+                    .padding(.trailing, 8)
+            }
+
+            // Line 2: "Mate in N" + tries indicator
+            HStack {
+                Text("Mate in \(state.hour)")
+                    .font(ChessClockType.caption)
+                    .foregroundColor(Color.white.opacity(0.70))
+                    .padding(.leading, 8)
+
+                Spacer()
+
+                // Tries circles: 8pt diameter, 4pt spacing
+                HStack(spacing: 4) {
+                    ForEach(1...3, id: \.self) { i in
+                        if i < triesUsed {
+                            // Used a wrong try
+                            Circle()
+                                .fill(ChessClockColor.feedbackError)
+                                .frame(width: 8, height: 8)
+                        } else if i == triesUsed {
+                            // Current unused slot
+                            Circle()
+                                .fill(ChessClockColor.accentGold)
+                                .frame(width: 8, height: 8)
+                        } else {
+                            // Future slots
+                            Circle()
+                                .stroke(Color.white.opacity(0.40), lineWidth: 1)
+                                .frame(width: 8, height: 8)
+                        }
+                    }
+                }
+                .padding(.trailing, 8)
+            }
+        }
+        .frame(height: 36)
+        .background(Color.black.opacity(0.55))
+        .clipShape(RoundedRectangle(cornerRadius: ChessClockRadius.puzzleBoard, style: .continuous))
     }
 
     private var statusText: some View {
