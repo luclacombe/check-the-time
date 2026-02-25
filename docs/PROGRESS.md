@@ -5,6 +5,31 @@
 
 ---
 
+## 2026-02-25 — Sprint 4: Puzzle Face
+**Goal:** Ship the interactive puzzle in a fixed 280×280 square with no text overlays during play
+**Completed:**
+- S4-1 DesignTokens — ChessClockRadius.puzzleBoard=4, tickLength 8→12
+- S4-2 InteractiveBoardView — gold selection/legal-dot colors, hover scale 1.03/1.05
+- S4-3 GoldRingLayerView — ticks extended to 12pt, board shadow layer, taper gradient 0.45→0.20
+- S4-4 GuessMoveView — ZStack root, fixed 280×280 board, 4pt clip, headerOverlay placeholder
+- S4-5 GuessMoveView — header overlay: back chevron, last names, Mate in N, gold/red/outline tries
+- S4-6 GuessMoveView — removed statusText, opponentMoveText, contextLine
+- S4-7 GuessMoveView + InteractiveBoardView — wrongFlashOverlay gone; redPulseSquare + snapBackSquare in IBV
+- S4-8 GuessMoveView — spec-compliant result cards (36pt icon, 12pt radius, Review/Done buttons)
+- S4-9 PromotionPickerView — column at file x-position, ultraThinMaterial cells, no title
+- S4-10 GuessMoveView + BoardView + InteractiveBoardView — 0.4s delay, lastOpponentMove highlight
+- S4-11 InfoPanelView — CTA pill hover: scaleEffect(1.04) + brightness(0.08), 0.12s easeInOut
+**Blocked / Skipped:**
+- None
+**Agents deployed:** 6 (A: S4-1, B: S4-11, C: S4-3, D: S4-2+S4-9, E: S4-4+S4-5+S4-6+S4-7+S4-8, F: S4-10)
+**Next session:** Run app and verify puzzle face visually. Run `/plan-sprint` for Sprint 5 (Replay Face).
+**Notes:**
+- UnevenRoundedRectangle skipped for macOS 13 compat — used RoundedRectangle for header corners
+- All 11 tasks verified BUILD SUCCEEDED individually and final full build passes
+- SourceKit IDE diagnostics are noise (scope resolution without full context) — ignore them
+
+---
+
 ## 2026-02-24 — Sprint 4P: Ring Performance (Zero-Copy IOSurface + Timer Lifecycle)
 **Goal:** Eliminate 3-4% CPU when popover is closed and reduce open-state CPU from 4-5% to <0.5%
 **Completed:**
@@ -41,64 +66,6 @@
 - All existing ring structure preserved: track, progress mask, specular/shadow strips, tick marks
 
 ---
-
-## 2026-02-24 — Sprint 4F: Ring Rendering Fix (Simplify)
-**Goal:** Fix the broken ring rendering from Sprint 4R — strip to a working 8pt gold ring with color drift
-**Completed:**
-- S4F-1 GoldRingLayerView rewrite — removed gradient rotation, glow tip, breathing pulse, spring physics, gradientClipContainer. Rebuilt with direct ring mask on gradient, progress mask on gold container.
-- S4F-2 Color drift animation — CABasicAnimation on locations (12s autoreverse), gated by reduce motion
-- S4F-3 ClockView integration — added .frame(width: 300, height: 300) to GoldRingLayerView
-- S4F-4 Docs update — Views/CLAUDE.md reflects simplified architecture
-**Blocked / Skipped:**
-- None
-**Agents deployed:** 1 (foreground, S4F-1/S4F-2)
-**Next session:** Run app and verify ring visuals. Run `/plan-sprint` for Sprint 4 (Puzzle Face).
-**Notes:**
-- Root cause confirmed: `CABasicAnimation(keyPath: "transform.rotation.z")` on gradient layer rotated the entire rectangular layer, making gold corners visible as a rotating square
-- File went from 538 lines → 349 lines (removed 189 lines of broken animation code)
-- Single continuous animation (locations drift) runs in render server — minimal CPU
-
----
-
-## 2026-02-24 — Sprint 4R: Ring Performance (CALayer Rewrite)
-**Goal:** Replace SwiftUI minute ring with Core Animation for <0.5% CPU and Apple-quality animation
-**Completed:**
-- S4R-1 GoldRingLayerView foundation — NSViewRepresentable, CAGradientLayer(.conic) with 17 gold stops, even-odd ring path, progress mask, specular/shadow strips, tick marks
-- S4R-2 Continuous animations — gradient rotation (120s), locations shimmer (5s autoreverse), all in render server
-- S4R-3 Spring progress + glow — CASpringAnimation wedge advance, 16pt glowing tip with breathing pulse, pointAlongRingPath perimeter walker
-- S4R-4 Integration — ClockView wired to GoldRingLayerView, old shapes removed (FilledRingTrack, ProgressWedge, RingCenterlinePath), ChessClockTube removed
-- S4R-5 Profiling — architecture verified for render-server execution
-- S4R-6 Reduced motion — skip rotation/shimmer/glow pulse when accessibility reduce motion is on
-**Blocked / Skipped:**
-- S4R-5 manual CPU measurement requires running app + Activity Monitor (user to verify)
-- S4R-6 visual tuning of animation parameters requires visual inspection (user to fine-tune rotation speed, shimmer intensity, spring feel)
-**Agents deployed:** 1 (foreground, S4R-1/2/3)
-**Next session:** Run app and verify ring visuals + CPU. Run `/plan-sprint` for next sprint.
-**Notes:**
-- S4R-2 and S4R-3 share a file — ran sequentially in one agent instead of parallel
-- Removed 385 lines of old SwiftUI ring code, added 520 lines of CALayer implementation
-- ChessClockAnimation.ring token kept (still used elsewhere); ChessClockTube removed
-
----
-
-## 2026-02-24 — Sprint 3.95: Ring Fix
-**Goal:** Fix the broken golden minute ring animation from Sprint 3.9
-**Completed:**
-- S3.95-1: Diagnosed root causes — `.animation` on root ZStack fighting TimelineView, erratic sin()-based pulse math, 6 blur ops per frame
-- S3.95-2: Scoped `.animation(.linear, value: second)` to fill group only — eliminated animation system conflict
-- S3.95-3: Replaced TimelineView dual-pulse system with 3 diffused energy pulses (constant-speed, heavily blurred, fade-in entry, ProgressWedge mask for diagonal end)
-- S3.95-4: Removed ChessClockPulse enum and ChessClockTube.centerHighlight from DesignTokens
-- S3.95-5: Simplified glass tube overlays to 2 layers (inner specular + outer shadow)
-- S3.95-6: Added board inner shadow (6pt stroke, 4pt blur, 22% opacity) for 3D depth
-- S3.95-7: Brightened tick marks (0.70/0.30 gradient) with centered shadow for raised/embossed look
-- S3.95-8: Updated DESIGN.md with learnings and final pulse parameters
-**Blocked / Skipped:**
-- None
-**Next session:**
-- Plan Sprint 4 (Puzzle Face)
-**Notes:**
-- Key learning: never apply `.animation` broadly to a ZStack containing TimelineView — scope it to only the layers that need it
-- Energy pulse aesthetic achieved through heavy blur (5-8pt), `.round` lineCap, multiple overlapping speeds, and short pulse widths (4-8%) for contrast against gold base
 
 ## Template
 
