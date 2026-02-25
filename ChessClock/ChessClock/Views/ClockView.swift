@@ -22,13 +22,6 @@ struct ClockView: View {
 
     var body: some View {
         ZStack {
-            // Ring layer — only in tree when clock mode (CALayer animations restart on re-insert)
-            if viewMode == .clock {
-                GoldRingLayerView(minute: clockService.state.minute, second: clockService.state.second, isActive: isPopoverVisible)
-                    .frame(width: 300, height: 300)
-                    .transition(.opacity)
-            }
-
             switch viewMode {
             case .clock:
                 boardWithRing
@@ -54,6 +47,13 @@ struct ClockView: View {
                     isFlipped: clockService.state.isFlipped,
                     onBack: { withAnimation(ChessClockAnimation.smooth) { viewMode = .info } }
                 )
+            }
+
+            // Ring layer — only in tree when clock mode (CALayer animations restart on re-insert)
+            if viewMode == .clock {
+                GoldRingLayerView(minute: clockService.state.minute, second: clockService.state.second, isActive: isPopoverVisible)
+                    .frame(width: 300, height: 300)
+                    .transition(.opacity)
             }
 
             if showOnboarding {
