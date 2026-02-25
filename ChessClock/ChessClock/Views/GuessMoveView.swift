@@ -11,7 +11,6 @@ struct GuessMoveView: View {
     @State private var isOpponentAnimating: Bool = false
 
     // Feedback overlays
-    @State private var showWrongFlash: Bool = false
     @State private var showSuccess: Bool = false
     @State private var showFailed: Bool = false
 
@@ -125,22 +124,6 @@ struct GuessMoveView: View {
     }
 
     // MARK: - Inline overlays
-
-    private var wrongFlashOverlay: some View {
-        ZStack {
-            Color.black.opacity(0.5).ignoresSafeArea()
-            VStack(spacing: 8) {
-                Image(systemName: "xmark.circle.fill")
-                    .font(.system(size: 40))
-                    .foregroundColor(.red)
-                Text("Not that move")
-                    .font(.headline)
-                    .foregroundColor(.white)
-            }
-            .padding(24)
-            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
-        }
-    }
 
     private var successOverlay: some View {
         ZStack {
@@ -262,12 +245,8 @@ struct GuessMoveView: View {
             playOpponentMoves(opponentMoves)
 
         case .wrong(_, let resetAutoPlays):
-            showWrongFlash = true
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
-                showWrongFlash = false
-                if !resetAutoPlays.isEmpty {
-                    playOpponentMoves(resetAutoPlays)
-                }
+            if !resetAutoPlays.isEmpty {
+                playOpponentMoves(resetAutoPlays)
             }
 
         case .failed:

@@ -23,6 +23,8 @@ struct InteractiveBoardView: View {
     @State private var isDragging = false
     // Snap-back animation
     @State private var snapBackSquare: ChessSquare?
+    // Red pulse on illegal drop target
+    @State private var redPulseSquare: ChessSquare?
     // Hover state
     @State private var hoveredSquare: ChessSquare?
     // Promotion pending
@@ -97,13 +99,19 @@ struct InteractiveBoardView: View {
                                             .strokeBorder(Self.legalDotColor, lineWidth: sq * 0.08)
                                     }
 
+                                    // Red pulse overlay for illegal drop target
+                                    if redPulseSquare == square {
+                                        ChessClockColor.wrongFlash
+                                    }
+
                                     // Piece (hidden while being dragged)
                                     if let p = piece, !isDraggedFrom {
                                         Image(p.imageName)
                                             .resizable()
                                             .scaledToFit()
                                             .padding(sq * 0.05)
-                                            .scaleEffect(isSelected ? 1.05 : (hoveredSquare == square && piece?.color == gameState.activeColor ? 1.03 : 1.0))
+                                            .scaleEffect(snapBackSquare == square ? 1.08 : (isSelected ? 1.05 : (hoveredSquare == square && piece?.color == gameState.activeColor ? 1.03 : 1.0)))
+                                            .animation(.spring(response: 0.15, dampingFraction: 0.8), value: snapBackSquare)
                                     }
                                 }
                                 .frame(width: sq, height: sq)
@@ -161,10 +169,16 @@ struct InteractiveBoardView: View {
                                 selectedSquare = nil
                                 legalDestinations = []
                             }
-                            // else: snap back — just clearing the state is enough
+                            // else: snap back with red pulse on illegal target
                             if candidates.isEmpty {
+                                redPulseSquare = to
+                                snapBackSquare = from
                                 selectedSquare = nil
                                 legalDestinations = []
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                                    withAnimation(.easeOut(duration: 0.3)) { redPulseSquare = nil }
+                                    withAnimation(.spring(response: 0.15, dampingFraction: 0.8)) { snapBackSquare = nil }
+                                }
                             }
                         }
                 )
