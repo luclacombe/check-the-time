@@ -910,19 +910,19 @@ Tasks:
 
 **Acceptance:** Entire puzzle flow works within 300×300. All feedback is visual. No unnecessary text.
 
-### Sprint 4.5 — Polish & Header Redesign
+### Sprint 4.5 — Polish & Header Redesign ✓
 **Goal:** Fix tick z-order, balance Detail face layout, improve board interaction visibility, implement auto-hide puzzle header pills, and redesign the result overlay as full-board frosted glass.
 
 Tasks:
-- [ ] S4.5-1 Tick z-order — move `GoldRingLayerView` above `boardWithRing` in `ClockView` ZStack so tick marks render on top of board surface
-- [ ] S4.5-2 Detail face vertical balance — fix `InfoPanelView` layout so top and bottom margins are symmetric (~12pt each); remove bottom `Spacer()`, use `alignment: .top` on frame
-- [ ] S4.5-3 Interaction color polish — update `DesignTokens`: `squareSelected` 0.30→0.50, `legalDot` 0.28→0.55, `legalCapture` 0.28→0.55
-- [ ] S4.5-4 Legal dot size — increase legal move dot diameter from `sq * 0.32` to `sq * 0.38` in `InteractiveBoardView`
-- [ ] S4.5-5 Puzzle header auto-hide pills — replace static `headerOverlay` with three-pill HStack (back, info, tries); auto-hides after 2.5s; persistent pip chevron on hover reveals pills
-- [ ] S4.5-6 Wrong move border flash — board-edge 3pt red `strokeBorder` flash on wrong move (0.5s), plus pills reappear for 1.8s
-- [ ] S4.5-7 Result overlay frosted glass — replace `successOverlay`/`failedOverlay` with full-board `.ultraThinMaterial` + 10% color tint; no icon; 28pt title; "Review →" gold capsule (0.2s delay); "Done" plain
+- [x] S4.5-1 Tick z-order — move `GoldRingLayerView` above `boardWithRing` in `ClockView` ZStack so tick marks render on top of board surface
+- [x] S4.5-2 Detail face vertical balance — fix `InfoPanelView` layout so top and bottom margins are symmetric (~12pt each); remove bottom `Spacer()`, use `alignment: .top` on frame
+- [x] S4.5-3 Interaction color polish — update `DesignTokens`: `squareSelected` 0.30→0.50, `legalDot` 0.28→0.55, `legalCapture` 0.28→0.55
+- [x] S4.5-4 Legal dot size — increase legal move dot diameter from `sq * 0.32` to `sq * 0.38` in `InteractiveBoardView`
+- [x] S4.5-5 Puzzle header auto-hide pills — replace static `headerOverlay` with three-pill HStack (back, info, tries); auto-hides after 2.5s; persistent pip chevron on hover reveals pills
+- [x] S4.5-6 Wrong move border flash — board-edge 3pt red `strokeBorder` flash on wrong move (0.5s), plus pills reappear for 1.8s
+- [x] S4.5-7 Result overlay frosted glass — replace `successOverlay`/`failedOverlay` with full-board `.ultraThinMaterial` + 10% color tint; no icon; 28pt title; "Review →" gold capsule (0.2s delay); "Done" plain
 
-**Acceptance:** Tick marks visible above board. Detail face has equal margins. Board interactions are higher-contrast (50%/55%). Puzzle header auto-hides with pip. Wrong move shows rim flash. Result is frosted glass, board visible through.
+✓ **Acceptance:** Tick marks visible above board. Detail face has equal margins. Board interactions are higher-contrast (50%/55%). Puzzle header auto-hides with pip. Wrong move shows rim flash. Result is frosted glass, board visible through.
 
 ---
 

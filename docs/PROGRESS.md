@@ -5,6 +5,26 @@
 
 ---
 
+## 2026-02-25 — Sprint 4.5: Polish & Header Redesign
+**Goal:** Fix tick z-order, balance Detail face, increase interaction visibility, auto-hide header pills, frosted glass result overlay
+**Completed:**
+- S4.5-1 ClockView — GoldRingLayerView z-order above board (tick marks visible)
+- S4.5-2 InfoPanelView — symmetric 12pt vertical margins, alignment: .top
+- S4.5-3 DesignTokens — squareSelected 0.30→0.50, legalDot/legalCapture 0.28→0.55
+- S4.5-4 InteractiveBoardView — legal dot diameter sq*0.32→sq*0.38
+- S4.5-5 GuessMoveView — three auto-hide pills (back, info, tries) + persistent pip chevron
+- S4.5-6 GuessMoveView — 3pt red strokeBorder flash (0.5s) + pills reappear 1.8s on wrong move
+- S4.5-7 GuessMoveView — full-board ultraThinMaterial frosted glass overlays, no icons, 28pt title
+**Blocked / Skipped:** None
+**Agents deployed:** 4 (A: S4.5-1, B: S4.5-2, C: S4.5-3+S4.5-4, D: S4.5-5+S4.5-6+S4.5-7)
+**Next session:** Run app and verify visually. Run `/plan-sprint` for Sprint 5 (Replay Face).
+**Notes:**
+- All 4 agents ran in parallel — no dependency conflicts
+- Full build verified after all commits merged
+- Zero adaptations needed; plan executed exactly as designed
+
+---
+
 ## 2026-02-25 — Sprint 4.5 Planning: Polish & Header Redesign
 **Goal:** Plan Sprint 4.5 based on visual feedback from Sprint 4 results
 **Completed:**
