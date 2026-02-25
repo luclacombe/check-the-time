@@ -636,31 +636,71 @@ struct GoldRingLayerView: NSViewRepresentable {
         }
 
         // MARK: Minor Tick Marks (8 intermediate ticks at 30° intervals)
+        // Ticks are drawn perpendicular to the board edge (not radial from center),
+        // spanning the full ring width (8pt) from outer edge to inner edge.
         let minorAngles: [CGFloat] = [30, 60, 120, 150, 210, 240, 300, 330]
-        let outerInset: CGFloat = ChessClockSize.ringOuterEdge  // 2pt
-        let midInset: CGFloat = outerInset + ChessClockSize.minorTickLength  // 6pt
-        let outerCornerR: CGFloat = ChessClockRadius.outer - outerInset   // 16pt
-        let midCornerR: CGFloat = ChessClockRadius.outer - midInset       // 12pt
+        let clInset: CGFloat = ChessClockSize.ringInset       // 6pt — ring centerline
+        let clR: CGFloat = ChessClockRadius.outer - clInset   // 12pt corner radius
+        let clRect = bounds.insetBy(dx: clInset, dy: clInset)
+        let halfRing: CGFloat = ChessClockSize.ringStroke / 2 // 4pt
 
-        let outerRect = bounds.insetBy(dx: outerInset, dy: outerInset)
-        let midRect = bounds.insetBy(dx: midInset, dy: midInset)
+        // Corner centers of the centerline rounded rect
+        let clLeft = clRect.minX, clRight = clRect.maxX
+        let clTop = clRect.minY, clBottom = clRect.maxY
+        let cornerCenters = [
+            CGPoint(x: clLeft + clR,  y: clTop + clR),     // TL
+            CGPoint(x: clRight - clR, y: clTop + clR),     // TR
+            CGPoint(x: clRight - clR, y: clBottom - clR),  // BR
+            CGPoint(x: clLeft + clR,  y: clBottom - clR),  // BL
+        ]
 
         for angle in minorAngles {
-            let from = roundedRectPoint(in: outerRect, cornerRadius: outerCornerR, angleDeg: angle)
-            let to = roundedRectPoint(in: midRect, cornerRadius: midCornerR, angleDeg: angle)
+            // Find point on ring centerline
+            let center = roundedRectPoint(in: clRect, cornerRadius: clR, angleDeg: angle)
+
+            // Compute outward normal (perpendicular to edge)
+            let eps: CGFloat = 1.0
+            let normal: CGPoint
+            if abs(center.y - clTop) < eps && center.x >= clLeft + clR - eps && center.x <= clRight - clR + eps {
+                normal = CGPoint(x: 0, y: -1)  // Top edge → up
+            } else if abs(center.y - clBottom) < eps && center.x >= clLeft + clR - eps && center.x <= clRight - clR + eps {
+                normal = CGPoint(x: 0, y: 1)   // Bottom edge → down
+            } else if abs(center.x - clRight) < eps && center.y >= clTop + clR - eps && center.y <= clBottom - clR + eps {
+                normal = CGPoint(x: 1, y: 0)   // Right edge → right
+            } else if abs(center.x - clLeft) < eps && center.y >= clTop + clR - eps && center.y <= clBottom - clR + eps {
+                normal = CGPoint(x: -1, y: 0)  // Left edge → left
+            } else {
+                // Corner arc — radial from nearest corner center
+                var closest = cornerCenters[0]
+                var minDist = hypot(center.x - closest.x, center.y - closest.y)
+                for c in cornerCenters.dropFirst() {
+                    let d = hypot(center.x - c.x, center.y - c.y)
+                    if d < minDist { minDist = d; closest = c }
+                }
+                let ndx = center.x - closest.x
+                let ndy = center.y - closest.y
+                let len = hypot(ndx, ndy)
+                normal = CGPoint(x: ndx / len, y: ndy / len)
+            }
+
+            // Tick spans full ring width: centerline ± halfRing along normal
+            let outerEnd = CGPoint(x: center.x + halfRing * normal.x,
+                                   y: center.y + halfRing * normal.y)
+            let innerEnd = CGPoint(x: center.x - halfRing * normal.x,
+                                   y: center.y - halfRing * normal.y)
 
             let path = CGMutablePath()
-            path.move(to: from)
-            path.addLine(to: to)
+            path.move(to: outerEnd)
+            path.addLine(to: innerEnd)
 
             let layer = CAShapeLayer()
             layer.path = path
-            layer.strokeColor = CGColor(red: 1, green: 1, blue: 1, alpha: 0.40)
+            layer.strokeColor = CGColor(red: 1, green: 1, blue: 1, alpha: 0.55)
             layer.lineWidth = ChessClockSize.minorTickWidth
             layer.lineCap = .butt
             layer.fillColor = nil
             layer.contentsScale = scale
-            layer.shadowColor = CGColor(red: 0, green: 0, blue: 0, alpha: 0.25)
+            layer.shadowColor = CGColor(red: 0, green: 0, blue: 0, alpha: 0.30)
             layer.shadowRadius = 1.0
             layer.shadowOpacity = 1.0
             layer.shadowOffset = .zero
