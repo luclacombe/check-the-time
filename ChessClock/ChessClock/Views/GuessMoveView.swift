@@ -24,9 +24,6 @@ struct GuessMoveView: View {
     @State private var wrongTriesPillVisible: Bool = false
     @State private var wrongTriesHideTask: DispatchWorkItem?
 
-    // S4.5-7: Delayed review button reveal
-    @State private var reviewButtonVisible: Bool = false
-
     var body: some View {
         ZStack {
             // Board (center, 280x280)
@@ -49,8 +46,8 @@ struct GuessMoveView: View {
             }
 
             // Result overlays
-            if showSuccess { successOverlay }
-            if showFailed  { failedOverlay }
+            if showSuccess { resultCard(succeeded: true) }
+            if showFailed  { resultCard(succeeded: false) }
         }
         .frame(width: 280, height: 280)
         .onAppear { initializePuzzle() }
@@ -76,6 +73,9 @@ struct GuessMoveView: View {
             }
         }
         .frame(width: 280, height: 280)
+        .blur(radius: (showSuccess || showFailed) ? 6 : 0)
+        .animation(ChessClockAnimation.smooth, value: showSuccess)
+        .animation(ChessClockAnimation.smooth, value: showFailed)
     }
 
     // MARK: - Header/Pip Zone (S5-5)
@@ -208,9 +208,9 @@ struct GuessMoveView: View {
         .shadow(color: .black.opacity(0.25), radius: 4, y: 2)
     }
 
-    // MARK: - Inline overlays (S4.5-7)
+    // MARK: - Result Card (S5-7)
 
-    private var successOverlay: some View {
+    private func resultCard(succeeded: Bool) -> some View {
         let triesUsed = guessService.result?.triesUsed ?? 1
         let tryPhrase: String = {
             switch triesUsed {
@@ -220,85 +220,46 @@ struct GuessMoveView: View {
             }
         }()
 
-        return ZStack {
-            // Frosted glass base
-            Rectangle()
-                .fill(.ultraThinMaterial)
-            // Green tint
-            ChessClockColor.feedbackSuccess.opacity(0.10)
-        }
-        .overlay {
-            VStack(spacing: 12) {
-                Text("Solved")
-                    .font(.system(size: 28, weight: .semibold))
-                    .foregroundColor(.white)
+        return VStack(spacing: 10) {
+            Text(succeeded ? "Solved" : "Not solved")
+                .font(.system(size: 22, weight: .semibold))
+                .foregroundColor(.primary)
 
+            if succeeded {
                 Text(tryPhrase)
-                    .font(.system(size: 13, weight: .regular))
-                    .foregroundColor(.white.opacity(0.60))
+                    .font(.system(size: 12, weight: .regular))
+                    .foregroundColor(.secondary)
+            }
 
-                HStack(spacing: 16) {
-                    if reviewButtonVisible {
-                        Button("Review \u{2192}") { onReplay() }
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundColor(ChessClockColor.accentGold)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 6)
-                            .background(.ultraThinMaterial)
-                            .clipShape(Capsule())
-                            .buttonStyle(.plain)
-                            .transition(.opacity)
-                    }
+            HStack(spacing: 12) {
+                Button("Review \u{2192}") { onReplay() }
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(ChessClockColor.accentGold)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 7)
+                    .background(ChessClockColor.accentGold.opacity(0.12))
+                    .clipShape(Capsule())
+                    .buttonStyle(.plain)
 
-                    Button("Done") { onBack() }
-                        .font(.system(size: 13, weight: .regular))
-                        .foregroundColor(.white.opacity(0.50))
-                        .buttonStyle(.plain)
-                }
+                Button("Done") { onBack() }
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundColor(.secondary)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 7)
+                    .background(Color(white: 0.5).opacity(0.10))
+                    .clipShape(Capsule())
+                    .buttonStyle(.plain)
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .clipShape(RoundedRectangle(cornerRadius: ChessClockRadius.puzzleBoard))
-        .transition(.opacity)
-        .onAppear { scheduleReviewButton() }
-    }
-
-    private var failedOverlay: some View {
-        ZStack {
-            Rectangle()
-                .fill(.ultraThinMaterial)
-            ChessClockColor.feedbackError.opacity(0.10)
-        }
-        .overlay {
-            VStack(spacing: 12) {
-                Text("Not solved")
-                    .font(.system(size: 28, weight: .semibold))
-                    .foregroundColor(.white)
-
-                HStack(spacing: 16) {
-                    if reviewButtonVisible {
-                        Button("Review \u{2192}") { onReplay() }
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundColor(ChessClockColor.accentGold)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 6)
-                            .background(.ultraThinMaterial)
-                            .clipShape(Capsule())
-                            .buttonStyle(.plain)
-                            .transition(.opacity)
-                    }
-
-                    Button("Done") { onBack() }
-                        .font(.system(size: 13, weight: .regular))
-                        .foregroundColor(.white.opacity(0.50))
-                        .buttonStyle(.plain)
-                }
-            }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .clipShape(RoundedRectangle(cornerRadius: ChessClockRadius.puzzleBoard))
-        .transition(.opacity)
-        .onAppear { scheduleReviewButton() }
+        .padding(24)
+        .background(.regularMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: ChessClockRadius.card))
+        .overlay(
+            RoundedRectangle(cornerRadius: ChessClockRadius.card)
+                .stroke(Color.white.opacity(0.20), lineWidth: 0.5)
+        )
+        .shadow(color: .black.opacity(0.20), radius: 12, y: 4)
+        .transition(.scale(scale: 0.92).combined(with: .opacity))
     }
 
     // MARK: - Logic
@@ -324,16 +285,7 @@ struct GuessMoveView: View {
         scheduleHeaderHide(after: seconds)
     }
 
-    // S4.5-7: Review button delay
-
-    private func scheduleReviewButton() {
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-            withAnimation { reviewButtonVisible = true }
-        }
-    }
-
     private func initializePuzzle() {
-        reviewButtonVisible = false
         guard let autoPlays = guessService.startPuzzle(game: state.game, hour: state.hour) else {
             // Result already exists for this hour — show it
             if let result = guessService.result {
