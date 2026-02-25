@@ -15,18 +15,35 @@ struct GuessMoveView: View {
     @State private var showSuccess: Bool = false
     @State private var showFailed: Bool = false
 
-    // Delayed "Review Game" button reveal
-    @State private var showReviewButton: Bool = false
+    // S4.5-5: Auto-hide header pills
+    @State private var headerVisible: Bool = true
+    @State private var headerHideTask: DispatchWorkItem?
+
+    // S4.5-6: Wrong move border flash
+    @State private var wrongBorderOpacity: Double = 0
+
+    // S4.5-7: Delayed review button reveal
+    @State private var reviewButtonVisible: Bool = false
 
     var body: some View {
         ZStack {
-            // Board (center, 280×280)
+            // Board (center, 280x280)
             boardSection
 
-            // Header overlay (top of board)
+            // Header pills (auto-hide)
             VStack {
-                headerOverlay
+                if headerVisible {
+                    puzzleHeaderPills
+                }
                 Spacer()
+            }
+
+            // Pip (visible when header hidden)
+            if !headerVisible {
+                VStack {
+                    puzzlePip
+                    Spacer()
+                }
             }
 
             // Result overlays
@@ -35,8 +52,6 @@ struct GuessMoveView: View {
         }
         .frame(width: 280, height: 280)
         .onAppear { initializePuzzle() }
-        .onChange(of: showSuccess) { if $0 { scheduleReviewButton() } }
-        .onChange(of: showFailed)  { if $0 { scheduleReviewButton() } }
     }
 
     // MARK: - Sub-views
@@ -59,72 +74,87 @@ struct GuessMoveView: View {
             }
         }
         .frame(width: 280, height: 280)
+        .overlay(
+            RoundedRectangle(cornerRadius: ChessClockRadius.puzzleBoard)
+                .strokeBorder(ChessClockColor.feedbackError, lineWidth: 3)
+                .opacity(wrongBorderOpacity)
+        )
     }
 
-    private var headerOverlay: some View {
+    // MARK: - Header Pills (S4.5-5)
+
+    private var puzzleHeaderPills: some View {
         let triesUsed = guessService.engine?.triesUsed ?? guessService.result?.triesUsed ?? 1
         let whiteName = state.game.white.components(separatedBy: ",").first ?? state.game.white
         let blackName = state.game.black.components(separatedBy: ",").first ?? state.game.black
 
-        return VStack(spacing: 0) {
-            // Line 1: back chevron + player names
-            HStack {
-                Button(action: onBack) {
-                    Image(systemName: "chevron.left")
-                        .font(ChessClockType.caption)
-                        .foregroundColor(Color.white.opacity(0.85))
-                        .frame(width: 28, height: 28)
-                }
-                .buttonStyle(.plain)
-
-                Spacer()
-
-                Text("\(whiteName) vs \(blackName)")
-                    .font(ChessClockType.caption)
+        return HStack(spacing: 8) {
+            // Back pill (left)
+            Button(action: onBack) {
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 12))
                     .foregroundColor(Color.white.opacity(0.85))
-                    .lineLimit(1)
-                    .padding(.trailing, 8)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
             }
+            .buttonStyle(.plain)
+            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: ChessClockRadius.pill))
 
-            // Line 2: "Mate in N" + tries indicator
-            HStack {
-                Text("Mate in \(state.hour)")
-                    .font(ChessClockType.caption)
-                    .foregroundColor(Color.white.opacity(0.70))
-                    .padding(.leading, 8)
+            // Info pill (center)
+            Text("\(whiteName) vs \(blackName) \u{00B7} Mate in \(state.hour)")
+                .font(ChessClockType.caption)
+                .foregroundColor(Color.white.opacity(0.85))
+                .lineLimit(1)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: ChessClockRadius.pill))
 
-                Spacer()
-
-                // Tries circles: 8pt diameter, 4pt spacing
-                HStack(spacing: 4) {
-                    ForEach(1...3, id: \.self) { i in
-                        if i < triesUsed {
-                            // Used a wrong try
-                            Circle()
-                                .fill(ChessClockColor.feedbackError)
-                                .frame(width: 8, height: 8)
-                        } else if i == triesUsed {
-                            // Current unused slot
-                            Circle()
-                                .fill(ChessClockColor.accentGold)
-                                .frame(width: 8, height: 8)
-                        } else {
-                            // Future slots
-                            Circle()
-                                .stroke(Color.white.opacity(0.40), lineWidth: 1)
-                                .frame(width: 8, height: 8)
-                        }
+            // Tries pill (right)
+            HStack(spacing: 4) {
+                ForEach(1...3, id: \.self) { i in
+                    if i < triesUsed {
+                        Circle()
+                            .fill(ChessClockColor.feedbackError)
+                            .frame(width: 8, height: 8)
+                    } else if i == triesUsed {
+                        Circle()
+                            .fill(ChessClockColor.accentGold)
+                            .frame(width: 8, height: 8)
+                    } else {
+                        Circle()
+                            .stroke(Color.white.opacity(0.40), lineWidth: 1)
+                            .frame(width: 8, height: 8)
                     }
                 }
-                .padding(.trailing, 8)
             }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 6)
+            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: ChessClockRadius.pill))
         }
-        .frame(height: 36)
-        .background(Color.black.opacity(0.55))
-        .clipShape(RoundedRectangle(cornerRadius: ChessClockRadius.puzzleBoard, style: .continuous))
+        .padding(.horizontal, 8)
+        .padding(.top, 8)
+        .transition(.asymmetric(
+            insertion: .move(edge: .top).combined(with: .opacity),
+            removal: .move(edge: .top).combined(with: .opacity)
+        ))
     }
 
-    // MARK: - Inline overlays
+    // MARK: - Pip (S4.5-5)
+
+    private var puzzlePip: some View {
+        Image(systemName: "chevron.down")
+            .font(.system(size: 12))
+            .foregroundColor(Color.white.opacity(0.60))
+            .frame(width: 24, height: 20)
+            .background(.ultraThinMaterial.opacity(0.7), in: RoundedRectangle(cornerRadius: 4))
+            .padding(.top, 6)
+            .onHover { hovering in
+                if hovering { showHeaderBriefly(seconds: 2.5) }
+            }
+            .transition(.opacity)
+    }
+
+    // MARK: - Inline overlays (S4.5-7)
 
     private var successOverlay: some View {
         let triesUsed = guessService.result?.triesUsed ?? 1
@@ -137,83 +167,119 @@ struct GuessMoveView: View {
         }()
 
         return ZStack {
-            ChessClockColor.overlayScrim  // Color.black.opacity(0.45)
-
+            // Frosted glass base
+            Rectangle()
+                .fill(.ultraThinMaterial)
+            // Green tint
+            ChessClockColor.feedbackSuccess.opacity(0.10)
+        }
+        .overlay {
             VStack(spacing: 12) {
-                Image(systemName: "checkmark.circle.fill")
-                    .font(.system(size: 36))
-                    .foregroundColor(ChessClockColor.feedbackSuccess)
-
                 Text("Solved")
-                    .font(ChessClockType.title)  // 17pt semibold
-                    .foregroundColor(.primary)
+                    .font(.system(size: 28, weight: .semibold))
+                    .foregroundColor(.white)
 
                 Text(tryPhrase)
-                    .font(.system(size: 12, weight: .regular))
-                    .foregroundColor(.secondary)
+                    .font(.system(size: 13, weight: .regular))
+                    .foregroundColor(.white.opacity(0.60))
 
                 HStack(spacing: 16) {
-                    if showReviewButton {
-                        Button("Review") { onReplay() }
+                    if reviewButtonVisible {
+                        Button("Review \u{2192}") { onReplay() }
                             .font(.system(size: 13, weight: .semibold))
                             .foregroundColor(ChessClockColor.accentGold)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(.ultraThinMaterial)
+                            .clipShape(Capsule())
                             .buttonStyle(.plain)
                             .transition(.opacity)
                     }
 
                     Button("Done") { onBack() }
                         .font(.system(size: 13, weight: .regular))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(.white.opacity(0.50))
                         .buttonStyle(.plain)
                 }
             }
-            .padding(20)
-            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: ChessClockRadius.card))
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .clipShape(RoundedRectangle(cornerRadius: ChessClockRadius.puzzleBoard))
+        .transition(.opacity)
+        .onAppear { scheduleReviewButton() }
     }
 
     private var failedOverlay: some View {
         ZStack {
-            ChessClockColor.overlayScrim  // Color.black.opacity(0.45)
-
+            Rectangle()
+                .fill(.ultraThinMaterial)
+            ChessClockColor.feedbackError.opacity(0.10)
+        }
+        .overlay {
             VStack(spacing: 12) {
-                Image(systemName: "xmark.circle.fill")
-                    .font(.system(size: 36))
-                    .foregroundColor(ChessClockColor.feedbackError)
-
                 Text("Not solved")
-                    .font(ChessClockType.title)  // 17pt semibold
-                    .foregroundColor(.primary)
+                    .font(.system(size: 28, weight: .semibold))
+                    .foregroundColor(.white)
 
                 HStack(spacing: 16) {
-                    if showReviewButton {
-                        Button("Review") { onReplay() }
+                    if reviewButtonVisible {
+                        Button("Review \u{2192}") { onReplay() }
                             .font(.system(size: 13, weight: .semibold))
                             .foregroundColor(ChessClockColor.accentGold)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(.ultraThinMaterial)
+                            .clipShape(Capsule())
                             .buttonStyle(.plain)
                             .transition(.opacity)
                     }
 
                     Button("Done") { onBack() }
                         .font(.system(size: 13, weight: .regular))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(.white.opacity(0.50))
                         .buttonStyle(.plain)
                 }
             }
-            .padding(20)
-            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: ChessClockRadius.card))
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .clipShape(RoundedRectangle(cornerRadius: ChessClockRadius.puzzleBoard))
+        .transition(.opacity)
+        .onAppear { scheduleReviewButton() }
     }
 
     // MARK: - Logic
 
+    // S4.5-5: Auto-hide header logic
+
+    private func scheduleHeaderHide(after seconds: Double) {
+        headerHideTask?.cancel()
+        let task = DispatchWorkItem {
+            withAnimation(.spring(response: 0.28, dampingFraction: 0.78)) {
+                headerVisible = false
+            }
+        }
+        headerHideTask = task
+        DispatchQueue.main.asyncAfter(deadline: .now() + seconds, execute: task)
+    }
+
+    private func showHeaderBriefly(seconds: Double) {
+        headerHideTask?.cancel()
+        withAnimation(.spring(response: 0.28, dampingFraction: 0.78)) {
+            headerVisible = true
+        }
+        scheduleHeaderHide(after: seconds)
+    }
+
+    // S4.5-7: Review button delay
+
     private func scheduleReviewButton() {
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            withAnimation { showReviewButton = true }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+            withAnimation { reviewButtonVisible = true }
         }
     }
 
     private func initializePuzzle() {
+        reviewButtonVisible = false
         guard let autoPlays = guessService.startPuzzle(game: state.game, hour: state.hour) else {
             // Result already exists for this hour — show it
             if let result = guessService.result {
@@ -226,6 +292,8 @@ struct GuessMoveView: View {
         if !autoPlays.isEmpty {
             playOpponentMoves(autoPlays)
         }
+        // S4.5-5: Schedule header auto-hide
+        scheduleHeaderHide(after: 2.5)
     }
 
     private func handleMove(_ move: ChessMove) {
@@ -241,6 +309,10 @@ struct GuessMoveView: View {
             playOpponentMoves(opponentMoves)
 
         case .wrong(_, let resetAutoPlays):
+            // S4.5-6: Red border flash + header reappear
+            wrongBorderOpacity = 0.75
+            withAnimation(.easeOut(duration: 0.5)) { wrongBorderOpacity = 0 }
+            showHeaderBriefly(seconds: 1.8)
             if !resetAutoPlays.isEmpty {
                 playOpponentMoves(resetAutoPlays)
             }
@@ -270,7 +342,7 @@ struct GuessMoveView: View {
         if move.uci.count >= 4 {
             let chars = Array(move.uci)
             let fromFile = Int(chars[0].asciiValue! - Character("a").asciiValue!)
-            let fromRank = 8 - Int(String(chars[1]))!  // rankIndex: rank 8 → 0, rank 1 → 7
+            let fromRank = 8 - Int(String(chars[1]))!  // rankIndex: rank 8 -> 0, rank 1 -> 7
             let toFile = Int(chars[2].asciiValue! - Character("a").asciiValue!)
             let toRank = 8 - Int(String(chars[3]))!
             lastOpponentMove = (
