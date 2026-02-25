@@ -11,9 +11,9 @@ struct InteractiveBoardView: View {
     // Classic lichess board colors
     private static let lightSquare = Color(red: 240/255, green: 217/255, blue: 181/255)
     private static let darkSquare  = Color(red: 181/255, green: 136/255, blue:  99/255)
-    private static let selectedTint = Color.yellow.opacity(0.45)
-    private static let legalDotColor = Color.black.opacity(0.22)
-    private static let legalCaptureTint = Color.black.opacity(0.18)
+    private static let selectedTint = ChessClockColor.squareSelected
+    private static let legalDotColor = ChessClockColor.legalDot
+    private static let legalCaptureTint = ChessClockColor.legalCapture
 
     // Interaction state
     @State private var selectedSquare: ChessSquare?
@@ -23,6 +23,8 @@ struct InteractiveBoardView: View {
     @State private var isDragging = false
     // Snap-back animation
     @State private var snapBackSquare: ChessSquare?
+    // Hover state
+    @State private var hoveredSquare: ChessSquare?
     // Promotion pending
     @State private var promotionFrom: ChessSquare?
     @State private var promotionTo: ChessSquare?
@@ -101,12 +103,20 @@ struct InteractiveBoardView: View {
                                             .resizable()
                                             .scaledToFit()
                                             .padding(sq * 0.05)
+                                            .scaleEffect(isSelected ? 1.05 : (hoveredSquare == square && piece?.color == gameState.activeColor ? 1.03 : 1.0))
                                     }
                                 }
                                 .frame(width: sq, height: sq)
                                 .contentShape(Rectangle())
                                 .onTapGesture {
                                     handleTap(square: square, gameState: gameState, allLegal: allLegal)
+                                }
+                                .onHover { hovering in
+                                    if hovering, let p = piece, p.color == gameState.activeColor {
+                                        hoveredSquare = square
+                                    } else if !hovering && hoveredSquare == square {
+                                        hoveredSquare = nil
+                                    }
                                 }
                             }
                         }
