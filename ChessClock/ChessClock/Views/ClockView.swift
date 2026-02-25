@@ -50,9 +50,12 @@ struct ClockView: View {
             }
 
             // Ring layer — only in tree when clock mode (CALayer animations restart on re-insert)
+            // Rendered AFTER boardWithRing so tick marks appear above the board surface.
+            // allowsHitTesting(false) lets hover/tap events pass through to the board below.
             if viewMode == .clock {
                 GoldRingLayerView(minute: clockService.state.minute, second: clockService.state.second, isActive: isPopoverVisible)
                     .frame(width: 300, height: 300)
+                    .allowsHitTesting(false)
                     .transition(.opacity)
             }
 
