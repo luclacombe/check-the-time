@@ -447,17 +447,17 @@ Every text string in the app. **No string should exist in code that isn't listed
 
 _Sprints 0–6 archived to `docs/archive/DESIGN-sprints-0-6.md`_
 
-### Sprint 6.5 — Replay Face: Board-First Two Overlays Redesign
+### Sprint 6.5 — Replay Face: Board-First Two Overlays Redesign ✓
 **Goal:** Redesign GameReplayView with minimal "board-first" layout: always-visible back pill, slim nav strip with progress bar, focus/keyboard fixes.
 
 Tasks:
-- [ ] S6.5-1: Update DESIGN.md — Replay Face redesign spec
-- [ ] S6.5-2: Design tokens for replay progress bar
-- [ ] S6.5-3: ReplayProgressBar — Interactive zone-colored scrubber
-- [ ] S6.5-4: Rewrite GameReplayView — Board-First Two Overlays
-- [ ] S6.5-5: Verify build + all tests pass
+- [x] S6.5-1: Update DESIGN.md — Replay Face redesign spec
+- [x] S6.5-2: Design tokens for replay progress bar
+- [x] S6.5-3: ReplayProgressBar — Interactive zone-colored scrubber
+- [x] S6.5-4: Rewrite GameReplayView — Board-First Two Overlays
+- [x] S6.5-5: Verify build + all tests pass
 
-**Acceptance:** Back pill always visible with player names. Nav strip replaces 5-button bar. Interactive progress bar with zone colors and snap-to-seek. Arrow keys work on hover (no click needed). Focus ring eliminated. All 32 existing tests pass.
+✓ **Acceptance:** Back pill always visible with player names. Nav strip replaces 5-button bar. Interactive progress bar with zone colors and snap-to-seek. Arrow keys work on hover (no click needed). Focus ring eliminated. All 32 existing tests pass.
 
 ### Sprint 7 — Chrome + Polish
 **Goal:** Ship the release candidate with borderless floating window, polished transitions, onboarding refresh, and comprehensive audit.

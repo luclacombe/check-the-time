@@ -5,6 +5,25 @@
 
 ---
 
+## 2026-02-26 — Sprint 6.5: Replay Face — Board-First Two Overlays Redesign
+**Goal:** Redesign GameReplayView with minimal "board-first" layout: always-visible back pill, slim nav strip with progress bar, focus/keyboard fixes.
+**Completed:**
+- S6.5-1 Update DESIGN.md — Face 5 rewritten with board-first two overlays, Copy Guide updated, Cmd+Arrow shortcuts, Sprint 6.5 in Sprint Plan
+- S6.5-2 Design tokens — progressBarHeight (3pt), progressBarHoverHeight (5pt), progressBarGlowRadius (20pt) in ChessClockSize
+- S6.5-3 ReplayProgressBar — new SwiftUI view: zone-colored fill, puzzle-start marker, click-to-seek snap zones, hover thickening + radial cursor glow
+- S6.5-4 GameReplayView rewrite — always-visible back pill (top-left, player names), slim nav strip (zone + SAN + N/M + arrows + progress bar), deleted ~130 lines (auto-hide pills, pip, 5-button nav, state machine). Focus ring fix, keyboard on hover, Cmd+Arrow jumps (macOS 14+).
+- S6.5-5 Full verification — BUILD SUCCEEDED, 150 tests passed (all 32 GameReplayViewTests unchanged), zero warnings
+**Blocked / Skipped:** None
+**Agents deployed:** 4 (A: S6.5-1, B: S6.5-2, C: S6.5-3, D: S6.5-4)
+**Next session:** Run `/plan-sprint` for Sprint 7 (Chrome + Polish).
+**Notes:**
+- 4-wave execution: Wave 1 (A+B parallel), Wave 2 (C after B), Wave 3 (D after C), Wave 4 (senior verify)
+- Zero adaptations — all tasks completed exactly as planned
+- 4 agent commits: c70c308, 62f7a95, ab536b0, da890bd
+- No integration fixes needed — interface contracts held perfectly across all agents
+
+---
+
 ## 2026-02-25 — Sprint 6: Replay Face Overhaul + Ring Polish + Settings Placeholder
 **Goal:** Rewrite GameReplayView to match Sprint 4–5 visual language, build SANFormatter, add minor ticks + semicircle ring tip, wire settings placeholder.
 **Completed:**
