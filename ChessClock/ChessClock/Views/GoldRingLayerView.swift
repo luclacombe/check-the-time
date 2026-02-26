@@ -261,119 +261,181 @@ struct GoldRingLayerView: NSViewRepresentable {
         return path
     }
 
-    /// Progress mask: stroked centerline path with butt caps (flat at 12 o'clock)
-    /// plus a semicircle cap at the leading edge only.
+    /// Progress mask built as a single closed ring-segment path:
+    /// outer edge forward → semicircle cap → inner edge backward → close at 12 o'clock.
+    /// No separate subpaths, no seam gaps, works on all edges and corners.
     private static func wedgePath(progress: CGFloat, in bounds: CGRect) -> CGPath {
         guard progress > 0 else { return CGMutablePath() }
         if progress >= 1.0 { return CGPath(rect: bounds, transform: nil) }
 
-        let (centerline, endTangent) = partialCenterlinePath(progress: progress, in: bounds)
+        // Ring edge rects and corner radii
+        let outerInset: CGFloat = 2
+        let innerInset: CGFloat = 10
+        let clInset: CGFloat = 6
+        let outerR = ChessClockRadius.outer - outerInset  // 16
+        let innerR = ChessClockRadius.outer - innerInset   // 8
+        let clR = ChessClockRadius.outer - clInset          // 12
+        let capR = ChessClockSize.ringStroke / 2             // 4
+        let outerRect = bounds.insetBy(dx: outerInset, dy: outerInset)
+        let innerRect = bounds.insetBy(dx: innerInset, dy: innerInset)
+        let clRect = bounds.insetBy(dx: clInset, dy: clInset)
 
-        // Butt caps: flat at 12 o'clock (no overflow), flat at leading edge
-        let stroked = centerline.copy(
-            strokingWithWidth: ChessClockSize.ringStroke,  // 8pt
-            lineCap: .butt,
-            lineJoin: .round,
-            miterLimit: 1
-        )
-
-        // Add semicircle cap at leading edge only
-        let capR = ChessClockSize.ringStroke / 2  // 4pt
-        let endPoint = centerline.currentPoint
-        let capStart = endTangent - .pi / 2  // perpendicular: one side of ring
-        let capEnd = endTangent + .pi / 2    // perpendicular: other side of ring
-
-        let combined = CGMutablePath()
-        combined.addPath(stroked)
-        combined.addArc(center: endPoint, radius: capR,
-                        startAngle: capStart, endAngle: capEnd,
-                        clockwise: false)
-        combined.closeSubpath()
-
-        return combined
-    }
-
-    /// Builds a CGPath tracing the ring centerline (6pt inset, 12pt corner radius)
-    /// clockwise from top-center to the given `progress` (0→1) position.
-    /// Returns the path and the tangent angle (radians) at the endpoint.
-    private static func partialCenterlinePath(progress: CGFloat, in bounds: CGRect) -> (path: CGMutablePath, endTangent: CGFloat) {
-        let inset: CGFloat = 6
-        let r: CGFloat = ChessClockRadius.outer - inset  // 12pt
-        let rect = bounds.insetBy(dx: inset, dy: inset)
-
-        let left = rect.minX, right = rect.maxX
-        let top = rect.minY, bottom = rect.maxY
-
-        let halfTop = rect.width / 2 - r       // ~132pt
-        let straightLen = rect.height - 2 * r   // ~264pt
-        let fullTop = rect.width - 2 * r        // ~264pt
-        let arcLen = CGFloat.pi * r / 2          // ~18.85pt
-
-        let segLengths: [CGFloat] = [
-            halfTop, arcLen, straightLen, arcLen,
-            fullTop, arcLen, straightLen, arcLen, halfTop
-        ]
-        let totalPerimeter = segLengths.reduce(0, +)
-        let targetDist = progress * totalPerimeter
+        // Map progress to segment index + fraction using centerline perimeter
+        let (segIdx, segT) = progressToSegment(progress: progress, rect: clRect, r: clR)
 
         let path = CGMutablePath()
-        path.move(to: CGPoint(x: rect.midX, y: top))
 
-        var endTangent: CGFloat = 0  // rightward (default for segment 0)
-        var remaining = targetDist
-        for (i, segLen) in segLengths.enumerated() {
-            guard remaining > 1e-6 else { break }
-            let consume = min(remaining, segLen)
-            let t = segLen > 1e-6 ? consume / segLen : 0
+        // 1. Start at outer edge, 12 o'clock
+        path.move(to: CGPoint(x: outerRect.midX, y: outerRect.minY))
 
-            switch i {
-            case 0: // Top right half → going right
-                path.addLine(to: CGPoint(x: rect.midX + t * halfTop, y: top))
-                endTangent = 0
-            case 1: // Top-right corner arc
-                let endAngle = -.pi / 2 + t * .pi / 2
-                path.addArc(center: CGPoint(x: right - r, y: top + r), radius: r,
-                            startAngle: -.pi / 2, endAngle: endAngle,
-                            clockwise: false)
-                endTangent = endAngle + .pi / 2
-            case 2: // Right side → going down
-                path.addLine(to: CGPoint(x: right, y: top + r + t * straightLen))
-                endTangent = .pi / 2
-            case 3: // Bottom-right corner arc
-                let endAngle = t * .pi / 2
-                path.addArc(center: CGPoint(x: right - r, y: bottom - r), radius: r,
-                            startAngle: 0, endAngle: endAngle,
-                            clockwise: false)
-                endTangent = endAngle + .pi / 2
-            case 4: // Bottom → going left
-                path.addLine(to: CGPoint(x: right - r - t * fullTop, y: bottom))
-                endTangent = .pi
-            case 5: // Bottom-left corner arc
-                let endAngle = .pi / 2 + t * .pi / 2
-                path.addArc(center: CGPoint(x: left + r, y: bottom - r), radius: r,
-                            startAngle: .pi / 2, endAngle: endAngle,
-                            clockwise: false)
-                endTangent = endAngle + .pi / 2
-            case 6: // Left side → going up
-                path.addLine(to: CGPoint(x: left, y: bottom - r - t * straightLen))
-                endTangent = -.pi / 2
-            case 7: // Top-left corner arc
-                let endAngle = .pi + t * .pi / 2
-                path.addArc(center: CGPoint(x: left + r, y: top + r), radius: r,
-                            startAngle: .pi, endAngle: endAngle,
-                            clockwise: false)
-                endTangent = endAngle + .pi / 2
-            case 8: // Top left half → going right
-                path.addLine(to: CGPoint(x: left + r + t * halfTop, y: top))
-                endTangent = 0
-            default:
-                break
+        // 2. Trace outer edge clockwise to (segIdx, segT)
+        addEdgeForward(to: path, rect: outerRect, r: outerR, endSeg: segIdx, endT: segT)
+
+        // 3. Semicircle cap from outer to inner endpoint (bulges forward)
+        let capCenter = pointOnEdge(rect: clRect, r: clR, seg: segIdx, t: segT)
+        let tangent = tangentAngle(seg: segIdx, t: segT)
+        path.addArc(center: capCenter, radius: capR,
+                    startAngle: tangent - .pi / 2,
+                    endAngle: tangent + .pi / 2,
+                    clockwise: false)
+
+        // 4. Trace inner edge counterclockwise back to 12 o'clock
+        addEdgeReverse(to: path, rect: innerRect, r: innerR, fromSeg: segIdx, fromT: segT)
+
+        // 5. Close: vertical line from inner 12 o'clock to outer 12 o'clock
+        path.closeSubpath()
+
+        return path
+    }
+
+    // MARK: - Ring Segment Helpers
+
+    /// 9 perimeter segments clockwise from top-center:
+    /// 0: top-right half, 1: TR corner arc, 2: right side, 3: BR corner arc,
+    /// 4: bottom, 5: BL corner arc, 6: left side, 7: TL corner arc, 8: top-left half
+
+    /// Maps progress (0→1) to a segment index and fraction using centerline arc lengths.
+    private static func progressToSegment(progress: CGFloat, rect: CGRect, r: CGFloat) -> (seg: Int, t: CGFloat) {
+        let halfTop = rect.width / 2 - r
+        let straight = rect.height - 2 * r
+        let fullTop = rect.width - 2 * r
+        let arc = CGFloat.pi * r / 2
+        let lengths: [CGFloat] = [halfTop, arc, straight, arc, fullTop, arc, straight, arc, halfTop]
+        let total = lengths.reduce(0, +)
+        let target = progress * total
+
+        var remaining = target
+        for (i, len) in lengths.enumerated() {
+            if remaining <= len + 1e-6 {
+                return (i, len > 1e-6 ? min(remaining / len, 1.0) : 0)
             }
-
-            remaining -= segLen
+            remaining -= len
         }
+        return (8, 1.0)
+    }
 
-        return (path, endTangent)
+    /// Point on a rounded rect edge at (segment, t).
+    private static func pointOnEdge(rect: CGRect, r: CGFloat, seg: Int, t: CGFloat) -> CGPoint {
+        let left = rect.minX, right = rect.maxX, top = rect.minY, bottom = rect.maxY
+        let halfTop = rect.width / 2 - r
+        let straight = rect.height - 2 * r
+        let fullTop = rect.width - 2 * r
+
+        switch seg {
+        case 0: return CGPoint(x: rect.midX + t * halfTop, y: top)
+        case 1:
+            let a = -.pi / 2 + t * .pi / 2
+            return CGPoint(x: right - r + r * cos(a), y: top + r + r * sin(a))
+        case 2: return CGPoint(x: right, y: top + r + t * straight)
+        case 3:
+            let a = t * .pi / 2
+            return CGPoint(x: right - r + r * cos(a), y: bottom - r + r * sin(a))
+        case 4: return CGPoint(x: right - r - t * fullTop, y: bottom)
+        case 5:
+            let a = .pi / 2 + t * .pi / 2
+            return CGPoint(x: left + r + r * cos(a), y: bottom - r + r * sin(a))
+        case 6: return CGPoint(x: left, y: bottom - r - t * straight)
+        case 7:
+            let a = CGFloat.pi + t * .pi / 2
+            return CGPoint(x: left + r + r * cos(a), y: top + r + r * sin(a))
+        case 8: return CGPoint(x: left + r + t * halfTop, y: top)
+        default: return CGPoint(x: rect.midX, y: top)
+        }
+    }
+
+    /// Tangent angle (radians) at a segment position. Same for all concentric edges.
+    private static func tangentAngle(seg: Int, t: CGFloat) -> CGFloat {
+        switch seg {
+        case 0, 8: return 0                          // rightward
+        case 1:    return t * .pi / 2                 // 0 → π/2
+        case 2:    return .pi / 2                     // downward
+        case 3:    return .pi / 2 + t * .pi / 2      // π/2 → π
+        case 4:    return .pi                         // leftward
+        case 5:    return .pi + t * .pi / 2           // π → 3π/2
+        case 6:    return -.pi / 2                    // upward
+        case 7:    return .pi + .pi / 2 + t * .pi / 2 // 3π/2 → 2π
+        default:   return 0
+        }
+    }
+
+    /// Traces a rounded rect edge clockwise from 12 o'clock to (endSeg, endT).
+    private static func addEdgeForward(to path: CGMutablePath, rect: CGRect, r: CGFloat,
+                                       endSeg: Int, endT: CGFloat) {
+        let left = rect.minX, right = rect.maxX, top = rect.minY, bottom = rect.maxY
+        let halfTop = rect.width / 2 - r
+        let straight = rect.height - 2 * r
+        let fullTop = rect.width - 2 * r
+
+        for seg in 0...endSeg {
+            let t = (seg == endSeg) ? endT : 1.0
+            guard t > 1e-8 else { continue }
+
+            switch seg {
+            case 0: path.addLine(to: CGPoint(x: rect.midX + t * halfTop, y: top))
+            case 1: path.addArc(center: CGPoint(x: right - r, y: top + r), radius: r,
+                                startAngle: -.pi / 2, endAngle: -.pi / 2 + t * .pi / 2, clockwise: false)
+            case 2: path.addLine(to: CGPoint(x: right, y: top + r + t * straight))
+            case 3: path.addArc(center: CGPoint(x: right - r, y: bottom - r), radius: r,
+                                startAngle: 0, endAngle: t * .pi / 2, clockwise: false)
+            case 4: path.addLine(to: CGPoint(x: right - r - t * fullTop, y: bottom))
+            case 5: path.addArc(center: CGPoint(x: left + r, y: bottom - r), radius: r,
+                                startAngle: .pi / 2, endAngle: .pi / 2 + t * .pi / 2, clockwise: false)
+            case 6: path.addLine(to: CGPoint(x: left, y: bottom - r - t * straight))
+            case 7: path.addArc(center: CGPoint(x: left + r, y: top + r), radius: r,
+                                startAngle: .pi, endAngle: .pi + t * .pi / 2, clockwise: false)
+            case 8: path.addLine(to: CGPoint(x: left + r + t * halfTop, y: top))
+            default: break
+            }
+        }
+    }
+
+    /// Traces a rounded rect edge counterclockwise from (fromSeg, fromT) back to 12 o'clock.
+    private static func addEdgeReverse(to path: CGMutablePath, rect: CGRect, r: CGFloat,
+                                       fromSeg: Int, fromT: CGFloat) {
+        let left = rect.minX, right = rect.maxX, top = rect.minY, bottom = rect.maxY
+
+        for seg in stride(from: fromSeg, through: 0, by: -1) {
+            let t = (seg == fromSeg) ? fromT : 1.0
+            guard t > 1e-8 else { continue }
+
+            // Each case traces from position (seg, t) back to position (seg, 0)
+            switch seg {
+            case 0: path.addLine(to: CGPoint(x: rect.midX, y: top))
+            case 1: path.addArc(center: CGPoint(x: right - r, y: top + r), radius: r,
+                                startAngle: -.pi / 2 + t * .pi / 2, endAngle: -.pi / 2, clockwise: true)
+            case 2: path.addLine(to: CGPoint(x: right, y: top + r))
+            case 3: path.addArc(center: CGPoint(x: right - r, y: bottom - r), radius: r,
+                                startAngle: t * .pi / 2, endAngle: 0, clockwise: true)
+            case 4: path.addLine(to: CGPoint(x: right - r, y: bottom))
+            case 5: path.addArc(center: CGPoint(x: left + r, y: bottom - r), radius: r,
+                                startAngle: .pi / 2 + t * .pi / 2, endAngle: .pi / 2, clockwise: true)
+            case 6: path.addLine(to: CGPoint(x: left, y: bottom - r))
+            case 7: path.addArc(center: CGPoint(x: left + r, y: top + r), radius: r,
+                                startAngle: .pi + t * .pi / 2, endAngle: .pi, clockwise: true)
+            case 8: path.addLine(to: CGPoint(x: left + r, y: top))
+            default: break
+            }
+        }
     }
 
     // MARK: - Tick Marks
