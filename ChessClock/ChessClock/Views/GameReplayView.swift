@@ -61,10 +61,7 @@ struct GameReplayView: View {
     private let puzzleStartPosIndex: Int
 
     @State private var posIndex: Int
-
-    // Auto-hide header pills
-    @State private var headerVisible: Bool = true
-    @State private var headerHideTask: DispatchWorkItem?
+    @FocusState private var isFocused: Bool
 
     init(game: ChessGame, hour: Int, isFlipped: Bool, onBack: @escaping () -> Void) {
         self.game = game
@@ -102,23 +99,29 @@ struct GameReplayView: View {
         return (from: move.from, to: move.to)
     }
 
+    // MARK: - Name helpers
+
+    private var whiteName: String {
+        game.white.components(separatedBy: ",").first ?? game.white
+    }
+    private var blackName: String {
+        game.black.components(separatedBy: ",").first ?? game.black
+    }
+
     // MARK: - Body
 
     var body: some View {
         ZStack {
-            // Board (full 280x280)
             boardSection
-
-            // Overlays
-            VStack {
-                headerPipZone
-                Spacer()
-                navOverlay
-            }
+            backPill
+            navStrip
         }
         .frame(width: 280, height: 280)
         .clipShape(RoundedRectangle(cornerRadius: ChessClockRadius.puzzleBoard))
+        .modifier(FocusEffectDisabledModifier())
         .focusable(true)
+        .focused($isFocused)
+        .onHover { hovering in if hovering { isFocused = true } }
         .onMoveCommand { direction in
             switch direction {
             case .left:  navigate(to: max(posIndex - 1, 0))
@@ -126,8 +129,23 @@ struct GameReplayView: View {
             default: break
             }
         }
-        .onAppear {
-            scheduleHeaderHide(after: ChessClockTiming.headerAutoHide)
+        .overlay {
+            if #available(macOS 14.0, *) {
+                Color.clear
+                    .onKeyPress(phases: .down) { keyPress in
+                        guard keyPress.modifiers == .command else { return .ignored }
+                        switch keyPress.key {
+                        case .leftArrow:
+                            navigate(to: 0)
+                            return .handled
+                        case .rightArrow:
+                            navigate(to: totalMoves)
+                            return .handled
+                        default:
+                            return .ignored
+                        }
+                    }
+            }
         }
     }
 
@@ -138,71 +156,19 @@ struct GameReplayView: View {
             .frame(width: 280, height: 280)
     }
 
-    // MARK: - Header/Pip Zone
+    // MARK: - Back Pill
 
-    private var headerPipZone: some View {
-        ZStack(alignment: .top) {
-            if headerVisible {
-                replayPillsContent
-                    .contentShape(Rectangle())
-                    .onHover { hovering in
-                        if hovering {
-                            headerHideTask?.cancel()
-                        } else {
-                            scheduleHeaderHide(after: ChessClockTiming.headerAutoHide)
-                        }
-                    }
-            } else {
-                replayPip
-                    .contentShape(Rectangle())
-                    .onHover { hovering in
-                        if hovering {
-                            headerHideTask?.cancel()
-                            withAnimation(.spring(response: 0.28, dampingFraction: 0.78)) {
-                                headerVisible = true
-                            }
-                            scheduleHeaderHide(after: ChessClockTiming.headerAutoHide)
-                        }
-                    }
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .top)
-    }
-
-    // MARK: - Header Pills
-
-    private var replayPillsContent: some View {
-        let whiteName = game.white.components(separatedBy: ",").first ?? game.white
-        let blackName = game.black.components(separatedBy: ",").first ?? game.black
-
-        return HStack(spacing: 8) {
-            // Back pill (left)
-            Button(action: onBack) {
+    private var backPill: some View {
+        Button(action: onBack) {
+            HStack(spacing: 4) {
                 Image(systemName: "chevron.left")
                     .font(.system(size: 12))
                     .foregroundColor(Color.white.opacity(0.85))
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .background(ChessClockColor.pillBackground, in: RoundedRectangle(cornerRadius: ChessClockRadius.pill))
-            .overlay(RoundedRectangle(cornerRadius: ChessClockRadius.pill).stroke(ChessClockColor.pillBorder, lineWidth: 0.5))
-            .shadow(color: .black.opacity(0.25), radius: 4, y: 2)
-
-            // Info pill (center) — two-line layout with zone pill
-            VStack(spacing: 3) {
                 Text("\(whiteName) vs \(blackName)")
                     .font(ChessClockType.caption)
                     .foregroundColor(Color.white.opacity(0.85))
                     .lineLimit(1)
                     .truncationMode(.tail)
-                Text(zone.label)
-                    .font(.system(size: 10, weight: .semibold))
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(zone.color, in: Capsule())
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
@@ -210,69 +176,77 @@ struct GameReplayView: View {
             .overlay(RoundedRectangle(cornerRadius: ChessClockRadius.pill).stroke(ChessClockColor.pillBorder, lineWidth: 0.5))
             .shadow(color: .black.opacity(0.25), radius: 4, y: 2)
         }
-        .padding(.horizontal, 8)
-        .padding(.top, 8)
-        .transition(.asymmetric(
-            insertion: .move(edge: .top).combined(with: .opacity),
-            removal: .move(edge: .top).combined(with: .opacity)
-        ))
+        .buttonStyle(.plain)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .padding(8)
     }
 
-    // MARK: - Pip
+    // MARK: - Nav Strip
 
-    private var replayPip: some View {
-        Image(systemName: "chevron.down")
-            .font(.system(size: 10))
-            .foregroundColor(Color.white.opacity(0.60))
-            .frame(width: 22, height: 16)
-            .background(Color(white: 0.25).opacity(0.50), in: RoundedRectangle(cornerRadius: 4))
-            .padding(.top, 6)
-            .transition(.opacity.animation(.easeIn(duration: 0.35)))
-    }
-
-    private var navOverlay: some View {
-        HStack {
-            // Nav buttons (left)
-            HStack(spacing: 12) {
-                navButton("backward.end.fill") { navigate(to: 0) }
-                    .disabled(posIndex == 0)
-                navButton("chevron.left") { navigate(to: max(posIndex - 1, 0)) }
-                    .disabled(posIndex == 0)
-                Button(action: { navigate(to: puzzleStartPosIndex) }) {
-                    Image(systemName: "circle.fill")
-                        .font(.system(size: 8))
+    private var navStrip: some View {
+        VStack(spacing: 0) {
+            // Content HStack
+            HStack {
+                // Left arrow
+                Button(action: { navigate(to: max(posIndex - 1, 0)) }) {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 14))
                         .foregroundColor(.white)
                 }
                 .buttonStyle(.plain)
                 .focusable(false)
-                navButton("chevron.right") { navigate(to: min(posIndex + 1, totalMoves)) }
-                    .disabled(posIndex == totalMoves)
-                navButton("forward.end.fill") { navigate(to: totalMoves) }
-                    .disabled(posIndex == totalMoves)
-            }
+                .disabled(posIndex == 0)
 
-            Spacer()
+                Spacer()
 
-            // Move info (right)
-            VStack(alignment: .trailing, spacing: 1) {
-                if zone == .checkmate {
-                    Text("Checkmate")
+                // Center group
+                HStack(spacing: 6) {
+                    Text(zone.label)
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundColor(zone.color)
+                    Text("\u{00B7}")
                         .font(ChessClockType.micro)
-                        .foregroundColor(Color.white.opacity(0.85))
-                } else {
+                        .foregroundColor(Color.white.opacity(0.40))
                     Text(sanLabel)
                         .font(ChessClockType.mono)
                         .foregroundColor(Color.white.opacity(0.85))
+                    Text("\u{00B7}")
+                        .font(ChessClockType.micro)
+                        .foregroundColor(Color.white.opacity(0.40))
+                    Text("\(posIndex)/\(totalMoves)")
+                        .font(ChessClockType.micro)
+                        .foregroundColor(Color.white.opacity(0.60))
                 }
-                Text("\(posIndex) of \(totalMoves)")
-                    .font(ChessClockType.micro)
-                    .foregroundColor(Color.white.opacity(0.60))
+
+                Spacer()
+
+                // Right arrow
+                Button(action: { navigate(to: min(posIndex + 1, totalMoves)) }) {
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 14))
+                        .foregroundColor(.white)
+                }
+                .buttonStyle(.plain)
+                .focusable(false)
+                .disabled(posIndex == totalMoves)
             }
+            .padding(.horizontal, 10)
+            .padding(.top, 6)
+            .padding(.bottom, 4)
+
+            // Progress bar
+            ReplayProgressBar(
+                posIndex: posIndex,
+                totalMoves: totalMoves,
+                puzzleStartPosIndex: puzzleStartPosIndex,
+                zone: zone,
+                onSeek: { navigate(to: $0) }
+            )
+            .padding(.horizontal, 6)
+            .padding(.bottom, 4)
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 8)
         .background(
-            Color.black.opacity(0.55)
+            ChessClockColor.pillBackground
                 .clipShape(
                     UnevenRoundedRectangle(
                         bottomLeadingRadius: ChessClockRadius.puzzleBoard,
@@ -280,16 +254,7 @@ struct GameReplayView: View {
                     )
                 )
         )
-    }
-
-    private func navButton(_ symbol: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Image(systemName: symbol)
-                .font(.system(size: 14))
-                .foregroundColor(.white)
-        }
-        .buttonStyle(.plain)
-        .focusable(false)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
     }
 
     private var sanLabel: String {
@@ -308,27 +273,6 @@ struct GameReplayView: View {
         withAnimation(.easeInOut(duration: 0.18)) {
             posIndex = newIndex
         }
-    }
-
-    // MARK: - Auto-hide header logic
-
-    private func scheduleHeaderHide(after seconds: Double) {
-        headerHideTask?.cancel()
-        let task = DispatchWorkItem {
-            withAnimation(.spring(response: 0.28, dampingFraction: 0.78)) {
-                headerVisible = false
-            }
-        }
-        headerHideTask = task
-        DispatchQueue.main.asyncAfter(deadline: .now() + seconds, execute: task)
-    }
-
-    private func showHeaderBriefly(seconds: Double) {
-        headerHideTask?.cancel()
-        withAnimation(.spring(response: 0.28, dampingFraction: 0.78)) {
-            headerVisible = true
-        }
-        scheduleHeaderHide(after: seconds)
     }
 
     // MARK: - Full position list computation
@@ -379,6 +323,18 @@ struct GameReplayView: View {
         }
         let active = state.activeColor == .white ? "w" : "b"
         return ranks.joined(separator: "/") + " \(active) - - 0 1"
+    }
+}
+
+// MARK: - Focus Effect Availability Wrapper
+
+private struct FocusEffectDisabledModifier: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(macOS 14.0, *) {
+            content.focusEffectDisabled()
+        } else {
+            content
+        }
     }
 }
 
