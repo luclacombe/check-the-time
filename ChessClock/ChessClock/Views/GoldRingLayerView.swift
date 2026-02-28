@@ -30,6 +30,7 @@ struct GoldRingLayerView: NSViewRepresentable {
     let minute: Int
     let second: Int
     let isActive: Bool
+    var hourChange: Bool = false
 
     func makeCoordinator() -> Coordinator { Coordinator() }
 
@@ -155,26 +156,92 @@ struct GoldRingLayerView: NSViewRepresentable {
         let bounds = CGRect(x: 0, y: 0, width: 300, height: 300)
         let progress = Self.computeProgress(minute: minute, second: second)
 
-        let isHourRollback = (minute == 0 && second == 0)
-        let newWedge = Self.wedgePath(progress: progress, in: bounds)
+        // Hour-change animation: sweep to full (0.3s) → drain clockwise (3s)
+        if hourChange && !coord.lastHourChange && !coord.hourAnimating {
+            coord.hourAnimating = true
 
-        if isHourRollback {
-            // At hour rollback, snap directly without animation
-            CATransaction.begin()
-            CATransaction.setDisableActions(true)
-            coord.progressMask?.path = newWedge
-            CATransaction.commit()
-        } else if minute != coord.lastMinute || second != coord.lastSecond {
-            // 0.3s ease for progress advance
+            // Phase 1: sweep to full (0.3s)
+            let fullWedge = CGPath(rect: bounds, transform: nil)
             CATransaction.begin()
             CATransaction.setAnimationDuration(0.3)
             CATransaction.setAnimationTimingFunction(CAMediaTimingFunction(name: .easeInEaseOut))
-            coord.progressMask?.path = newWedge
+            coord.progressMask?.path = fullWedge
             CATransaction.commit()
+
+            // Phase 2: drain clockwise over 2.5s using frame-by-frame even-odd masking.
+            // The drain wedge grows clockwise from 12 o'clock (using existing wedgePath),
+            // subtracted from the full rect via even-odd fill rule → remaining fill shrinks.
+            // Cubic ease-in: starts slow, accelerates noticeably toward the end.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak coord] in
+                guard let coord = coord else { return }
+                coord.progressMask?.fillRule = .evenOdd
+
+                let drainDuration: Double = 2.5
+                let drainStart = CACurrentMediaTime()
+
+                let timer = Timer.scheduledTimer(withTimeInterval: 1.0 / 60.0, repeats: true) { [weak coord] timer in
+                    guard let coord = coord else { timer.invalidate(); return }
+                    let elapsed = CACurrentMediaTime() - drainStart
+                    let t = min(elapsed / drainDuration, 1.0)
+                    // Cubic ease-in: slow start, accelerating finish
+                    let eased = t * t * t
+
+                    let composite = CGMutablePath()
+                    composite.addRect(bounds)
+                    if eased > 0.001 {
+                        composite.addPath(Self.wedgePath(progress: CGFloat(eased), in: bounds))
+                    }
+
+                    CATransaction.begin()
+                    CATransaction.setDisableActions(true)
+                    coord.progressMask?.path = composite
+                    CATransaction.commit()
+
+                    if t >= 1.0 {
+                        timer.invalidate()
+                        coord.drainTimer = nil
+                        // Reset to normal non-zero winding fill rule, empty mask
+                        coord.progressMask?.fillRule = .nonZero
+                        let emptyPath = CGMutablePath()
+                        CATransaction.begin()
+                        CATransaction.setDisableActions(true)
+                        coord.progressMask?.path = emptyPath
+                        CATransaction.commit()
+                        coord.hourAnimating = false
+                    }
+                }
+                RunLoop.main.add(timer, forMode: .common)
+                coord.drainTimer = timer
+            }
+
+            coord.lastHourChange = hourChange
+            coord.lastMinute = minute
+            coord.lastSecond = second
+        } else if !coord.hourAnimating {
+            // Normal progress updates (skip during hour-change animation)
+            let isHourRollback = (minute == 0 && second == 0)
+            let newWedge = Self.wedgePath(progress: progress, in: bounds)
+
+            if isHourRollback {
+                // At hour rollback, snap directly without animation
+                CATransaction.begin()
+                CATransaction.setDisableActions(true)
+                coord.progressMask?.path = newWedge
+                CATransaction.commit()
+            } else if minute != coord.lastMinute || second != coord.lastSecond {
+                // 0.3s ease for progress advance
+                CATransaction.begin()
+                CATransaction.setAnimationDuration(0.3)
+                CATransaction.setAnimationTimingFunction(CAMediaTimingFunction(name: .easeInEaseOut))
+                coord.progressMask?.path = newWedge
+                CATransaction.commit()
+            }
+
+            coord.lastMinute = minute
+            coord.lastSecond = second
         }
 
-        coord.lastMinute = minute
-        coord.lastSecond = second
+        coord.lastHourChange = hourChange
 
         // Timer lifecycle: start/stop based on isActive
         if isActive != coord.lastIsActive {
@@ -213,14 +280,18 @@ struct GoldRingLayerView: NSViewRepresentable {
         var noiseLayer: CALayer?
         var renderer: GoldNoiseRenderer?
         var noiseTimer: Timer?
+        var drainTimer: Timer?
         var progressMask: CAShapeLayer?
         var lastMinute: Int = -1
         var lastSecond: Int = -1
         var lastIsActive: Bool = true
+        var lastHourChange: Bool = false
+        var hourAnimating: Bool = false
         var reduceMotion: Bool = false
 
         deinit {
             noiseTimer?.invalidate()
+            drainTimer?.invalidate()
         }
     }
 

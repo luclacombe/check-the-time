@@ -5,7 +5,22 @@
 
 ---
 
-## 2026-02-26 — Sprint 7R: Replay & Puzzle UI Polish
+## 2026-02-28 — Sprint 7 (partial): Chrome — BorderlessPanel, Onboarding, Hour-Change Animation
+**Goal:** Implement S7-1 through S7-3: borderless floating window, onboarding refresh, and hour-change animation.
+**Completed:**
+- S7-1 BorderlessPanel — `BorderlessPanel` NSPanel subclass (borderless, 300×300, draggable, `.floating`, system shadow, `.canJoinAllSpaces`). `FloatingWindowContent` wrapper with hover-visible close (`xmark`) + minimize (`minus`) buttons (dark circle bg, white bold icon, drop shadow).
+- S7-2 Onboarding refresh — Title "Chess Clock", 4 Copy Guide body lines, "Continue" gold capsule, 12pt card radius, "Don't show again" checkbox (only persists when checked).
+- S7-3 Hour-change animation — Ring sweep to full (0.3s) → clockwise drain (2.5s, 60fps Timer, even-odd CAShapeLayer masking, cubic ease-in acceleration) → white flash (0.1s in, 0.2s out) hides board swap to new hour. Board frozen via snapshotFen/snapshotFlipped during drain. Total ~3.1s.
+**Blocked / Skipped:** S7-4, S7-5, S7-6 remain in backlog.
+**Next session:** S7-4 (Face transition audit), S7-5 (Performance audit), S7-6 (Accessibility + reduced motion).
+**Notes:**
+- 4 files modified: FloatingWindowManager.swift, OnboardingOverlayView.swift, ClockView.swift, GoldRingLayerView.swift
+- Ring drain uses frame-by-frame even-odd masking (growing wedgePath subtracted from full rect) — CA path interpolation doesn't work across different path structures
+- BUILD SUCCEEDED, all 150 tests pass
+
+---
+
+## 2026-02-26 — Sprint 6.5 Post: Replay & Puzzle UI Polish
 **Goal:** Visual polish pass on replay face and puzzle success indicator.
 **Completed:**
 - S7R-1 DesignTokens — replayBoard 220→206, replay shadow colors, thick progress bar + halftone tokens

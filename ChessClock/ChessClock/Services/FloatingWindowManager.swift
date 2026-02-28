@@ -1,12 +1,66 @@
 import AppKit
 import SwiftUI
 
+// MARK: - BorderlessPanel
+
+/// Borderless NSPanel subclass that can become key/main for keyboard events.
+private class BorderlessPanel: NSPanel {
+    override var canBecomeKey: Bool { true }
+    override var canBecomeMain: Bool { true }
+}
+
+// MARK: - FloatingWindowContent
+
+/// Wraps ClockView with hover-visible close/minimize buttons for the borderless floating window.
+private struct FloatingWindowContent: View {
+    let clockService: ClockService
+    let onClose: () -> Void
+    let onMinimize: () -> Void
+    @State private var isHovering = false
+
+    var body: some View {
+        ZStack(alignment: .topLeading) {
+            ClockView(clockService: clockService)
+
+            if isHovering {
+                HStack(spacing: 6) {
+                    windowButton(icon: "xmark", action: onClose)
+                    windowButton(icon: "minus", action: onMinimize)
+                }
+                .padding(.top, 22)
+                .padding(.leading, 22)
+                .transition(.opacity)
+            }
+        }
+        .frame(width: 300, height: 300)
+        .clipShape(RoundedRectangle(cornerRadius: ChessClockRadius.outer))
+        .onHover { hovering in
+            withAnimation(ChessClockAnimation.fast) { isHovering = hovering }
+        }
+    }
+
+    private func windowButton(icon: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: icon)
+                .font(.system(size: 9, weight: .bold))
+                .foregroundStyle(.white.opacity(0.85))
+                .frame(width: 22, height: 22)
+                .background(.black.opacity(0.45), in: Circle())
+                .overlay(Circle().strokeBorder(.white.opacity(0.2), lineWidth: 0.5))
+        }
+        .buttonStyle(.plain)
+        .shadow(color: .black.opacity(0.3), radius: 2, y: 1)
+    }
+}
+
+// MARK: - FloatingWindowManager
+
 /// Manages right-click context menu on the status bar icon and a detached floating panel.
 @MainActor
 final class FloatingWindowManager: NSObject, NSMenuDelegate {
     static let shared = FloatingWindowManager()
 
-    private var panel: NSPanel?
+    private var panel: BorderlessPanel?
     private var clockService: ClockService?
     private var eventMonitor: Any?
 
@@ -90,16 +144,28 @@ final class FloatingWindowManager: NSObject, NSMenuDelegate {
             return
         }
         guard let clockService else { return }
-        let p = NSPanel(
-            contentRect: NSRect(x: 0, y: 0, width: 324, height: 400),
-            styleMask: [.titled, .closable, .resizable, .nonactivatingPanel],
+
+        let p = BorderlessPanel(
+            contentRect: NSRect(x: 0, y: 0, width: 300, height: 300),
+            styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false
         )
         p.level = .floating
-        p.title = "Chess Clock"
+        p.isMovableByWindowBackground = true
+        p.backgroundColor = .clear
+        p.isOpaque = false
+        p.hasShadow = true
+        p.hidesOnDeactivate = false
+        p.collectionBehavior.insert(.canJoinAllSpaces)
         p.isReleasedWhenClosed = false
-        p.contentView = NSHostingView(rootView: ClockView(clockService: clockService))
+
+        let content = FloatingWindowContent(
+            clockService: clockService,
+            onClose: { [weak p] in p?.close() },
+            onMinimize: { [weak p] in p?.miniaturize(nil) }
+        )
+        p.contentView = NSHostingView(rootView: content)
         p.center()
         p.makeKeyAndOrderFront(nil)
         panel = p

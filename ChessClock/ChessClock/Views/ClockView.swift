@@ -16,6 +16,11 @@ struct ClockView: View {
     @State private var isPopoverVisible = true
     @State private var puzzleRingTint: TintTarget = .none
     @State private var puzzleFeedbackSeq: Int = 0
+    @State private var hourChangeActive = false
+    // Hour-change: freeze old board during ring drain, flash to swap
+    @State private var snapshotFen: String = ""
+    @State private var snapshotFlipped: Bool = false
+    @State private var hourFlash: Bool = false
 
     init(clockService: ClockService) {
         self.clockService = clockService
@@ -65,7 +70,7 @@ struct ClockView: View {
             // Rendered AFTER boardWithRing so tick marks appear above the board surface.
             // allowsHitTesting(false) lets hover/tap events pass through to the board below.
             if viewMode == .clock {
-                GoldRingLayerView(minute: clockService.state.minute, second: clockService.state.second, isActive: isPopoverVisible)
+                GoldRingLayerView(minute: clockService.state.minute, second: clockService.state.second, isActive: isPopoverVisible, hourChange: hourChangeActive)
                     .frame(width: 300, height: 300)
                     .allowsHitTesting(false)
                     .transition(.opacity)
@@ -81,13 +86,42 @@ struct ClockView: View {
 
             if showOnboarding {
                 OnboardingOverlayView {
-                    OnboardingService.dismissOnboarding()
                     showOnboarding = false
                 }
             }
         }
         .frame(width: 300, height: 300)
         .clipShape(RoundedRectangle(cornerRadius: ChessClockRadius.outer))
+        .onAppear {
+            snapshotFen = clockService.state.fen
+            snapshotFlipped = clockService.state.isFlipped
+        }
+        // Keep snapshot of current fen (for freezing board during hour-change drain)
+        .onChange(of: clockService.state.fen) { newFen in
+            if !hourChangeActive { snapshotFen = newFen }
+        }
+        .onChange(of: clockService.state.isFlipped) { newFlipped in
+            if !hourChangeActive { snapshotFlipped = newFlipped }
+        }
+        // Hour-change: ring drain (2.85s) → flash + board swap → fade out
+        .onChange(of: clockService.state.hour) { _ in
+            guard viewMode == .clock else { return }
+            hourChangeActive = true
+            // After drain completes, fire flash
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.85) {
+                withAnimation(.easeIn(duration: 0.1)) { hourFlash = true }
+                // At flash peak: swap board behind the flash
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    snapshotFen = clockService.state.fen
+                    snapshotFlipped = clockService.state.isFlipped
+                    // Fade flash out, revealing new board
+                    withAnimation(.easeOut(duration: 0.2)) { hourFlash = false }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                        hourChangeActive = false
+                    }
+                }
+            }
+        }
         // Reset to clock on popover reopen; pause timer on popover close
         .background(WindowObserver(
             onBecomeKey: {
@@ -105,9 +139,13 @@ struct ClockView: View {
     // MARK: - Board + Glance (clock face)
 
     private var boardWithRing: some View {
-        ZStack {
+        // During hour-change drain, show frozen (old) board; otherwise live state
+        let boardFen = hourChangeActive ? snapshotFen : clockService.state.fen
+        let boardFlipped = hourChangeActive ? snapshotFlipped : clockService.state.isFlipped
+
+        return ZStack {
             // Layer 1: chess board (280×280) — blurs on hover (Glance face)
-            BoardView(fen: clockService.state.fen, isFlipped: clockService.state.isFlipped)
+            BoardView(fen: boardFen, isFlipped: boardFlipped)
                 .frame(width: 280, height: 280)
                 // Inner shadow: blurred inset stroke — computed once per hour (Equatable board)
                 .overlay(
@@ -117,7 +155,13 @@ struct ClockView: View {
                         .mask(RoundedRectangle(cornerRadius: ChessClockRadius.board))
                         .opacity(0.22)
                 )
-                .drawingGroup()  // Rasterize board + shadow into one texture for hover blur
+                // Hour-change flash: white burst hides the board swap
+                .overlay(
+                    Color.white
+                        .opacity(hourFlash ? 0.7 : 0)
+                        .clipShape(RoundedRectangle(cornerRadius: ChessClockRadius.board))
+                )
+                .drawingGroup()  // Rasterize board + overlays into one texture for hover blur
                 .blur(radius: isHovering ? 8 : 0)
                 .animation(.easeInOut(duration: isHovering ? 0.2 : 0.15), value: isHovering)
 

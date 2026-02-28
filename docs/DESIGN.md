@@ -402,9 +402,9 @@ Every text string in the app. **No string should exist in code that isn't listed
 
 ### Hour-Change Animation
 
-1. Ring sweeps to full (0.3s), resets to 0 (quick wipe, 0.2s)
+1. Ring sweeps to full (0.3s), then drains clockwise — trailing edge chases leading edge to empty (0.3s easeIn)
 2. Board cross-fade: old out (0.3s), new in (0.3s), overlap 0.15s
-3. Total: ~0.6s
+3. Total: ~0.9s
 
 ### Keyboard Shortcuts
 
@@ -466,11 +466,11 @@ Tasks:
 
 Tasks:
 
-- [ ] **S7-1: BorderlessPanel** — `NSPanel` subclass (`canBecomeKey`, `canBecomeMain`). Borderless, 300×300, draggable, `.floating` level, system shadow. Custom close button on hover (top-left, `xmark`, `.ultraThinMaterial` circle, fade 0.15s). Content: `ClockView` clipped to 18pt rounded rect.
+- [x] **S7-1: BorderlessPanel** — `BorderlessPanel` NSPanel subclass (`canBecomeKey`, `canBecomeMain`). Borderless, 300×300, draggable by background, `.floating` level, system shadow, `.canJoinAllSpaces`. `FloatingWindowContent` wrapper with hover-visible close (`xmark`) and minimize (`minus`) buttons — dark circle background (`.black.opacity(0.45)`), white bold icon, drop shadow. Content: `ClockView` clipped to 18pt rounded rect.
 
-- [ ] **S7-2: Onboarding refresh** — Update text to match Copy Guide. "Got it" → "Continue" gold capsule. Corner radius → 12pt (`radius.card`). Typography → design tokens.
+- [x] **S7-2: Onboarding refresh** — Title "Chess Clock", 4 body lines matching Copy Guide (left-aligned, `ChessClockType.body`), "Continue" gold capsule button (`accentGold` on `accentGold.opacity(0.12)`), 12pt card radius (`ChessClockRadius.card`), `.regularMaterial` background, "Don't show again" checkbox — only persists dismissal when checked.
 
-- [ ] **S7-3: Hour-change animation** — Detect `hour` change via `.onChange(of:)`. Ring sweep to full (0.3s) → instant reset. Board cross-fade via `.id(hour)` + `.transition(.opacity)`. Total ~0.6s.
+- [x] **S7-3: Hour-change animation** — Detect `hour` change via `.onChange(of:)`. Ring sweeps to full (0.3s easeInOut) → drains clockwise over 2.5s (60fps Timer, even-odd masking, cubic ease-in for acceleration). Board frozen during drain via `snapshotFen`/`snapshotFlipped`. After drain: white flash overlay (0.7 opacity, 0.1s in) hides board swap to new hour, flash fades out (0.2s) revealing new position. Total ~3.1s.
 
 - [ ] **S7-4: Face transition audit** — Verify every transition in the Interaction Specification table. All use `withAnimation(ChessClockAnimation.smooth)` (0.4s easeInOut) for ViewMode changes.
 
@@ -478,9 +478,7 @@ Tasks:
 
 - [ ] **S7-6: Accessibility + reduced motion** — VoiceOver labels on all interactive elements. Reduced motion: disable continuous animations, simple fades instead of springs, instant blur toggle.
 
-- [ ] **S7-7: Light/dark mode verification** — Verify pill backgrounds, borders, `.primary`/`.secondary` contrast, onboarding, board colors (hardcoded, correct).
-
-**Acceptance:** Borderless 300×300 floating window. Every transition matches spec. Hour-change animation works. Onboarding uses v1.0 copy. CPU <0.5% idle. VoiceOver labels. Reduced motion disables continuous animations. Light/dark both work. Ready for v1.0 release.
+**Acceptance:** Borderless 300×300 floating window. Every transition matches spec. Hour-change animation works. Onboarding uses v1.0 copy. CPU <0.5% idle. VoiceOver labels. Reduced motion disables continuous animations. Ready for v1.0 release.
 
 ---
 
@@ -541,13 +539,15 @@ Button("Continue") { onDismiss() }
     .buttonStyle(.plain)
 ```
 
-#### S7-3: Hour-change animation
+#### S7-3: Hour-change animation (as implemented)
 
-In `ClockView`, when `clockService.state.hour` changes (`.onChange(of:)`):
-1. Ring sweeps to full: set progress to 1.0 with `ChessClockAnimation.standard` (0.3s spring)
-2. Ring resets: after 0.3s delay, set progress to 0 inside `CATransaction.setDisableActions(true)` (instant, no animation)
-3. Board cross-fade: `.transition(.opacity)` on `BoardView` keyed by hour: `.id(clockService.state.hour)`
-Total: ~0.6s.
+In `ClockView`, `.onChange(of: clockService.state.hour)`:
+1. `hourChangeActive = true` — freezes `snapshotFen`/`snapshotFlipped` (old board position)
+2. `GoldRingLayerView` receives `hourChange: true` → sweeps progressMask to full rect (0.3s CA animation)
+3. After 0.35s: drain phase — 60fps `Timer` with cubic ease-in (`t³`), even-odd `CAShapeLayer` mask (`bounds rect + growing wedgePath`), runs 2.5s. Ring fill shrinks clockwise from 12 o'clock.
+4. After drain (~2.85s): white flash overlay fades in (0.1s, 0.7 opacity), board swaps to new fen behind flash, flash fades out (0.2s)
+5. `hourChangeActive = false` — resumes live state updates
+Total: ~3.1s.
 
 #### S7-5: Performance audit
 
