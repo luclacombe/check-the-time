@@ -47,7 +47,9 @@
       "WebFetch(domain:rhosgfx.itch.io)",
       "WebFetch(domain:medium.com)",
       "WebFetch(domain:raw.githubusercontent.com)",
-      "WebFetch(domain:gist.github.com)"
+      "WebFetch(domain:gist.github.com)",
+      "Bash(git stash:*)",
+      "Bash(git status:*)"
     ]
   }
 }
