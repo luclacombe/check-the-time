@@ -76,6 +76,11 @@ ZStack {
 | `ctaOnboardingBrighten` | `false` | B-2 / C (auto-brighten CTA button) |
 | `hideTickMarks` | `OnboardingService.shouldShowStageA` | A (tick marks hidden during steps 1–2) |
 | `forceFullRing` | `OnboardingService.shouldShowStageA` | A (ring shown full during steps 1–2) |
+| `hideGoldRing` | `OnboardingService.shouldShowStageA` | A (gold ring hidden during Stage 0 + A-1, fades in at A-2) |
+| `welcomeBlur` | `ChessClockWelcome.blurRadius` (25) | 0 (board Gaussian blur for focus pull) |
+| `welcomeDim` | `ChessClockWelcome.dimAmount` (-0.5) | 0 (board brightness for focus pull) |
+| `welcomeScale` | `ChessClockWelcome.zoomScale` (1.25) | 0 (board scale for focus pull) |
+| `pulseGoldRing` | `false` | 0 (warm gold pulse after A-3 ticks land) |
 
 **Triggers** (in `.onChange(of: viewMode)`):
 - B: `viewMode == .info && shouldShowStageB` → 0.6s delay
@@ -141,19 +146,51 @@ ClockView has a reusable helper: `spotlightScrim(cutout: CGRect, cornerRadius: C
 
 ## Stage Details
 
-### Stage 0 — Welcome Screen
+### Stage 0 — Cinematic Focus Pull
 
-**File:** `WelcomeOverlayView.swift`
+**Files:** `WelcomeOverlayView.swift` (overlay: tagline + dust motes) + `ClockView.swift` (board blur/dim/scale)
 **Trigger:** First launch (`shouldShowWelcome`)
-**Duration:** Auto-dismiss after 3s, or tap anywhere
+**Duration:** Auto-dismiss at T+6.5s, or tap anywhere to fast-finish
 
-**Content:** "Chess Clock" (24pt semibold) + gold divider line + "Every board tells the time" (13pt regular)
+**Concept:** The board starts heavily blurred, dimmed, and zoomed (like an out-of-focus rack shot). It gradually sharpens into clarity while golden bokeh motes float upward and a tagline fades in then out. Similar to a luxury watch commercial rack-focus.
 
-**Animations:**
-- Entrance: staggered — scrim (0.5s) → title slide-up+fade (0.7s, 0.15s delay) → gold divider scale-in (0.5s, 0.35s delay) → subtitle slide-up+fade (0.7s, 0.5s delay)
-- Exit: content lifts up + fades (0.5s easeInOut), then calls `onDismiss()`
+**Animation sequence:**
+```
+T+0.0s  Board renders: blur=25pt, brightness=-0.5, scale=1.25x
+        Gold bokeh motes begin spawning (staggered 0–0.8s)
+T+0.3s  Focus pull begins (3 concurrent easeOut animations):
+          blur:       25 → 0     3.5s easeOut
+          brightness: -0.5 → 0   3.0s easeOut
+          scale:      1.25 → 1.0 4.0s easeOut
+T+1.5s  Tagline fades in: "Every board tells the time"
+        Warm cream, 16pt serif light, 2.5pt kerning, 4-layer dark shadow halo
+T+2.8s  Motes group cutoff (0.5s) — most fade individually before this
+T+5.5s  Tagline fades out (0.5s)
+T+6.5s  Auto-dismiss → Stage A after 1.0s delay (0.8s easeOut entrance)
+```
 
-**Transition to Stage A:** After welcome dismisses, 0.3s delay, then `showOnboarding = true`.
+**Board modifiers (ClockView):** `welcomeBlur`, `welcomeDim`, `welcomeScale` state vars applied to `boardWithRing` via `.blur()`, `.brightness()`, `.scaleEffect()` — active only when `showWelcome` is true, otherwise reduces to existing hover behavior. A `boardFillColor` rectangle behind the board (inside drawingGroup) prevents hard blur edge artifacts and persists through A-1 via `hideGoldRing` condition.
+
+**Bokeh motes:** 10 gold `Circle` views with randomized parameters (seed=42, stratified positions for full board coverage). Each mote has unique size (6-28pt), blur (2-11pt), opacity (0.16-0.48), color warmth shift, spawn delay, drift amount (25-44pt), and lifespan (1.2-2.8s drift duration). Heavy blur creates a soft out-of-focus lens flake look.
+
+**Tagline:** "Every board tells the time" — warm cream `(0.94, 0.89, 0.78)`, 16pt serif (New York) light weight, 2.5pt kerning. 4-layer dark shadow halo for legibility against board: 3pt/95%, 8pt/80%, 16pt/50%, 30pt/25%. Visible for ~4 seconds (T+1.5s to T+5.5s).
+
+**Tap to fast-finish:** Tap at any time → fast-finish (0.3s easeOut snaps blur/dim/scale to 0), overlay fades, Stage A starts.
+
+**Reduce motion:** `NSWorkspace.shared.accessibilityDisplayShouldReduceMotion` — snap board to clear immediately (no blur/dim/scale), skip motes and tagline entirely, auto-dismiss at 1.0s.
+
+**State flags (ClockView):**
+
+| Flag | Default | Purpose |
+|------|---------|---------|
+| `welcomeBlur` | `ChessClockWelcome.blurRadius` (25) | Board Gaussian blur radius |
+| `welcomeDim` | `ChessClockWelcome.dimAmount` (-0.5) | Board brightness modifier |
+| `welcomeScale` | `ChessClockWelcome.zoomScale` (1.25) | Board scale effect |
+| `pulseGoldRing` | `false` | Triggers warm gold pulse on ring after A-3 ticks land |
+
+Reset on every `onBecomeKey`. In `debugReplay`, `startFocusPull()` is called after a 0.05s delay.
+
+**Transition to Stage A:** After welcome dismisses, 1.0s delay, then `showOnboarding = true` with 0.8s easeOut. Stage A's own scrim + pill fade in with 0.8s easeOut. Step transitions within Stage A also use 0.8s easeInOut — all matching the slow, cinematic pace of Stage 0.
 
 ---
 
@@ -165,8 +202,8 @@ ClockView has a reusable helper: `spotlightScrim(cutout: CGRect, cornerRadius: C
 
 | Step | Copy | Spotlight |
 |------|------|-----------|
-| 1 | "Every hour, a real game\nThe board shows the hour" | Board bright (280x280 crisp cutout, **no blur**), ring **extra dark** (0.72), tick marks **hidden**, ring **forced full** |
-| 2 | "The ring shows the minutes" | Ring bright (annulus cutout, eoFill, **no blur** — crisp edge), board **extra dark** (0.72), tick marks **hidden**, ring **forced full** |
+| 1 | "Every hour, a real game\nThe board shows the hour" | Board bright (280x280 crisp cutout, **no blur**), gold ring **hidden** (opacity 0), scrim 0.72, tick marks **hidden**, ring **forced full** |
+| 2 | "The ring shows the minutes" | Ring bright (annulus cutout, eoFill, **no blur** — crisp edge), gold ring **fades in** (0.4s easeInOut via `onShowRing`), board **extra dark** (0.72), tick marks **hidden**, ring **forced full** |
 | 3 | "Tap anywhere for game details" | No scrim — ring fill animation sequence → tick marks slide in |
 
 **Pill position:** Always at bottom (`.padding(.bottom, 16)`)
@@ -178,8 +215,9 @@ ClockView has a reusable helper: `spotlightScrim(cutout: CGRect, cornerRadius: C
 **Step 3 — Ring Fill Animation Sequence** (triggered by `onReachFinalStep` setting `forceFullRing = false`):
 1. **Gold fade-out** (0.3s easeInEaseOut): goldContainer opacity → 0
 2. **Snap reset** (instant, after 0.35s): mask set to empty, opacity restored to 1
-3. **Clockwise fill** (fixed velocity, linear): frame-by-frame fill from 0 → actual minute progress via `wedgePath`. Duration = `progress * 3.0s` (3s for a full ring, proportional for partial — e.g. 30 min = 1.5s, 15 min = 0.75s)
-4. **Tick marks slide in** (0.5s easeOut): each tick slides from its edge (top↑, right→, bottom↓, left←) with opacity fade. Delayed until fill completes: `0.35 + progress * 3.0 + 0.15` seconds after step 3 entry
+3. **Clockwise fill** (fixed velocity, linear): frame-by-frame fill from 0 → actual minute progress via `wedgePath`. Duration = `progress * 5.0s` (5s for a full ring, proportional for partial — e.g. 30 min = 2.5s, 15 min = 1.25s)
+4. **Tick marks slide in** (0.5s easeOut): each tick slides from its edge (top↑, right→, bottom↓, left←) with opacity fade. Delayed until fill completes: `0.35 + progress * 5.0 + 0.15` seconds after step 3 entry
+5. **Gold ring pulse** (1.0s): warm gold flash (35% peak opacity, keyframed) on a ring-shaped overlay layer inside goldContainer. Triggered 0.5s after ticks land via `pulseGoldRing` flag. The finishing flourish.
 
 **Reuse note:** This fill animation sequence lives entirely in `GoldRingLayerView.updateNSView` — it triggers whenever `forceFullRing` transitions from `true` to `false`. To reuse (e.g. on app open), set `forceFullRing = true` initially, then set it to `false` when the fill should begin. The tick mark delay is computed separately in `ClockView.onReachFinalStep` based on current progress.
 

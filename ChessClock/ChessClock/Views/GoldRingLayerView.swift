@@ -33,6 +33,8 @@ struct GoldRingLayerView: NSViewRepresentable {
     var hourChange: Bool = false
     var hideTickMarks: Bool = false
     var forceFullRing: Bool = false
+    var hideGoldRing: Bool = false
+    var pulseGold: Bool = false
 
     func makeCoordinator() -> Coordinator { Coordinator() }
 
@@ -60,6 +62,8 @@ struct GoldRingLayerView: NSViewRepresentable {
         goldContainer.contentsScale = scale
         view.layer!.addSublayer(goldContainer)
         coord.goldContainer = goldContainer
+        if hideGoldRing { goldContainer.opacity = 0 }
+        coord.lastHideGoldRing = hideGoldRing
 
         // Noise texture layer filling full 300x300 bounds, clipped to ring by its own mask
         let noiseLayer = CALayer()
@@ -109,6 +113,17 @@ struct GoldRingLayerView: NSViewRepresentable {
         shadowStrip.frame = bounds
         shadowStrip.contentsScale = scale
         goldContainer.addSublayer(shadowStrip)
+
+        // Pulse overlay (warm gold flash, initially invisible)
+        let pulseLayer = CAShapeLayer()
+        pulseLayer.path = Self.ringPath(in: bounds)
+        pulseLayer.fillRule = .evenOdd
+        pulseLayer.fillColor = CGColor(red: 1, green: 0.92, blue: 0.65, alpha: 1)
+        pulseLayer.opacity = 0
+        pulseLayer.frame = bounds
+        pulseLayer.contentsScale = scale
+        goldContainer.addSublayer(pulseLayer)
+        coord.pulseLayer = pulseLayer
 
         // Progress mask on gold container (pie wedge, or full rect when forceFullRing)
         let progress = Self.computeProgress(minute: minute, second: second)
@@ -175,6 +190,23 @@ struct GoldRingLayerView: NSViewRepresentable {
         let bounds = CGRect(x: 0, y: 0, width: 300, height: 300)
         let progress = Self.computeProgress(minute: minute, second: second)
 
+        // Gold ring visibility (onboarding: hidden during Stage 0 + A-1, fades in at A-2)
+        if hideGoldRing != coord.lastHideGoldRing {
+            coord.lastHideGoldRing = hideGoldRing
+            if hideGoldRing {
+                CATransaction.begin()
+                CATransaction.setDisableActions(true)
+                coord.goldContainer?.opacity = 0
+                CATransaction.commit()
+            } else {
+                CATransaction.begin()
+                CATransaction.setAnimationDuration(0.4)
+                CATransaction.setAnimationTimingFunction(CAMediaTimingFunction(name: .easeInEaseOut))
+                coord.goldContainer?.opacity = 1
+                CATransaction.commit()
+            }
+        }
+
         // Force full ring → fill animation (onboarding A-3)
         if forceFullRing && !coord.lastForceFullRing {
             // Snap to full (e.g. debugReplay reset)
@@ -206,7 +238,7 @@ struct GoldRingLayerView: NSViewRepresentable {
                 CATransaction.commit()
 
                 // Phase 3: Frame-by-frame clockwise fill from 0 → target (fixed velocity)
-                let fullRingDuration: Double = 3.0  // seconds for a complete ring fill
+                let fullRingDuration: Double = 5.0  // seconds for a complete ring fill
                 let fillDuration = Double(targetProgress) * fullRingDuration
                 let fillStart = CACurrentMediaTime()
 
@@ -338,6 +370,17 @@ struct GoldRingLayerView: NSViewRepresentable {
             CATransaction.commit()
         }
 
+        // Gold ring brightness pulse (onboarding: after tick marks land)
+        if pulseGold && !coord.lastPulseGold {
+            let pulse = CAKeyframeAnimation(keyPath: "opacity")
+            pulse.values = [0, 0.35, 0] as [NSNumber]
+            pulse.keyTimes = [0, 0.35, 1.0] as [NSNumber]
+            pulse.duration = 1.0
+            pulse.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+            coord.pulseLayer?.add(pulse, forKey: "pulse")
+        }
+        coord.lastPulseGold = pulseGold
+
         // Timer lifecycle: start/stop based on isActive
         if isActive != coord.lastIsActive {
             coord.lastIsActive = isActive
@@ -385,10 +428,13 @@ struct GoldRingLayerView: NSViewRepresentable {
         var lastHourChange: Bool = false
         var lastHideTickMarks: Bool = false
         var lastForceFullRing: Bool = false
+        var lastHideGoldRing: Bool = false
         var hourAnimating: Bool = false
         var fillAnimating: Bool = false
         var fillTimer: Timer?
         var reduceMotion: Bool = false
+        var pulseLayer: CAShapeLayer?
+        var lastPulseGold: Bool = false
 
         deinit {
             noiseTimer?.invalidate()

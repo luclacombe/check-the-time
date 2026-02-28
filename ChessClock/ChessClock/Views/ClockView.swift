@@ -32,6 +32,12 @@ struct ClockView: View {
     @State private var ctaOnboardingBrighten = false  // Stage B-2 auto-brighten
     @State private var hideTickMarks = OnboardingService.shouldShowStageA  // hidden during A-1/A-2
     @State private var forceFullRing = OnboardingService.shouldShowStageA  // full ring during A-1/A-2
+    @State private var hideGoldRing = OnboardingService.shouldShowStageA  // gold hidden during Stage 0 + A-1
+    // Focus pull (Stage 0)
+    @State private var welcomeBlur: CGFloat = ChessClockWelcome.blurRadius
+    @State private var welcomeDim: Double = ChessClockWelcome.dimAmount
+    @State private var welcomeScale: CGFloat = ChessClockWelcome.zoomScale
+    @State private var pulseGoldRing = false
 
     init(clockService: ClockService) {
         self.clockService = clockService
@@ -141,7 +147,7 @@ struct ClockView: View {
 
             // MARK: Ring layers
             if viewMode == .clock {
-                GoldRingLayerView(minute: clockService.state.minute, second: clockService.state.second, isActive: isPopoverVisible, hourChange: hourChangeActive, hideTickMarks: hideTickMarks, forceFullRing: forceFullRing)
+                GoldRingLayerView(minute: clockService.state.minute, second: clockService.state.second, isActive: isPopoverVisible, hourChange: hourChangeActive, hideTickMarks: hideTickMarks, forceFullRing: forceFullRing, hideGoldRing: hideGoldRing, pulseGold: pulseGoldRing)
                     .frame(width: 300, height: 300)
                     .allowsHitTesting(false)
                     .transition(.opacity)
@@ -158,13 +164,8 @@ struct ClockView: View {
 
             // Stage 0: Welcome screen
             if showWelcome {
-                WelcomeOverlayView(onDismiss: {
-                    withAnimation(ChessClockAnimation.smooth) { showWelcome = false }
-                    if OnboardingService.shouldShowStageA {
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                            withAnimation(ChessClockAnimation.smooth) { showOnboarding = true }
-                        }
-                    }
+                WelcomeOverlayView(onDismiss: { fastFinish in
+                    dismissWelcome(fastFinish: fastFinish)
                 })
                 .transition(.opacity)
             }
@@ -178,19 +179,27 @@ struct ClockView: View {
                     onBoardTap: {
                         forceFullRing = false
                         hideTickMarks = false
+                        hideGoldRing = false
                         withAnimation(ChessClockAnimation.smooth) {
                             showOnboarding = false
                             viewMode = .info
                         }
                     },
+                    onShowRing: {
+                        hideGoldRing = false
+                    },
                     onReachFinalStep: {
                         forceFullRing = false  // triggers gold fade → clockwise fill animation
                         // Tick marks slide in after fill completes
-                        // Fill duration = progress * 3.0s (fixed velocity), plus 0.35s fade phase
+                        // Fill duration = progress * 5.0s (fixed velocity), plus 0.35s fade phase
                         let progress = Double(clockService.state.minute * 60 + clockService.state.second) / 3600.0
-                        let tickDelay = 0.35 + progress * 3.0 + 0.15
+                        let tickDelay = 0.35 + progress * 5.0 + 0.15
                         DispatchQueue.main.asyncAfter(deadline: .now() + tickDelay) {
                             hideTickMarks = false
+                            // Gold ring pulse after ticks land (0.5s slide-in)
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                                pulseGoldRing = true
+                            }
                         }
                     }
                 )
@@ -221,6 +230,9 @@ struct ClockView: View {
         .onAppear {
             snapshotFen = clockService.state.fen
             snapshotFlipped = clockService.state.isFlipped
+            if showWelcome {
+                startFocusPull()
+            }
             if !showWelcome && OnboardingService.shouldShowStageA {
                 showOnboarding = true
             }
@@ -285,10 +297,20 @@ struct ClockView: View {
                 ctaOnboardingBrighten = false
                 hideTickMarks = false
                 forceFullRing = false
+                hideGoldRing = false
+                pulseGoldRing = false
+                // Reset focus pull state
+                welcomeBlur = ChessClockWelcome.blurRadius
+                welcomeDim = ChessClockWelcome.dimAmount
+                welcomeScale = ChessClockWelcome.zoomScale
                 if OnboardingService.debugReplay {
                     OnboardingService.resetAll(); showWelcome = true
                     hideTickMarks = true
                     forceFullRing = true
+                    hideGoldRing = true
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                        startFocusPull()
+                    }
                 }
                 clockService.resume()
             },
@@ -297,6 +319,41 @@ struct ClockView: View {
                 clockService.pause()
             }
         ))
+    }
+
+    // MARK: - Focus Pull (Stage 0)
+
+    private func startFocusPull() {
+        if NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
+            welcomeBlur = 0; welcomeDim = 0; welcomeScale = 1.0
+            return
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + ChessClockWelcome.focusDelay) {
+            guard showWelcome else { return }
+            withAnimation(.easeOut(duration: ChessClockWelcome.blurDuration)) {
+                welcomeBlur = 0
+            }
+            withAnimation(.easeOut(duration: ChessClockWelcome.dimDuration)) {
+                welcomeDim = 0
+            }
+            withAnimation(.easeOut(duration: ChessClockWelcome.scaleDuration)) {
+                welcomeScale = 1.0
+            }
+        }
+    }
+
+    private func dismissWelcome(fastFinish: Bool) {
+        if fastFinish {
+            withAnimation(.easeOut(duration: ChessClockWelcome.fastFinishDuration)) {
+                welcomeBlur = 0; welcomeDim = 0; welcomeScale = 1.0
+            }
+        }
+        withAnimation(ChessClockAnimation.smooth) { showWelcome = false }
+        if OnboardingService.shouldShowStageA {
+            DispatchQueue.main.asyncAfter(deadline: .now() + ChessClockWelcome.stageADelay) {
+                withAnimation(.easeOut(duration: 0.8)) { showOnboarding = true }
+            }
+        }
     }
 
     // MARK: - Stage B Overlay
@@ -465,23 +522,34 @@ struct ClockView: View {
         let boardFlipped = hourChangeActive ? snapshotFlipped : clockService.state.isFlipped
 
         return ZStack {
-            BoardView(fen: boardFen, isFlipped: boardFlipped)
-                .frame(width: 280, height: 280)
-                .overlay(
-                    RoundedRectangle(cornerRadius: ChessClockRadius.board)
-                        .stroke(Color.black, lineWidth: 6)
-                        .blur(radius: 4)
-                        .mask(RoundedRectangle(cornerRadius: ChessClockRadius.board))
-                        .opacity(0.22)
-                )
-                .overlay(
-                    Color.white
-                        .opacity(hourFlash ? 0.7 : 0)
-                        .clipShape(RoundedRectangle(cornerRadius: ChessClockRadius.board))
-                )
-                .drawingGroup()
-                .blur(radius: isHovering ? 8 : 0)
-                .animation(.easeInOut(duration: isHovering ? 0.2 : 0.15), value: isHovering)
+            ZStack {
+                // Brown fill behind board: prevents blur edge artifact (Stage 0)
+                // and covers ring gap with brown until gold ring fades in (A-2)
+                if hideGoldRing {
+                    ChessClockWelcome.boardFillColor
+                        .frame(width: 300, height: 300)
+                }
+
+                BoardView(fen: boardFen, isFlipped: boardFlipped)
+                    .frame(width: 280, height: 280)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: ChessClockRadius.board)
+                            .stroke(Color.black, lineWidth: 6)
+                            .blur(radius: 4)
+                            .mask(RoundedRectangle(cornerRadius: ChessClockRadius.board))
+                            .opacity(0.22)
+                    )
+                    .overlay(
+                        Color.white
+                            .opacity(hourFlash ? 0.7 : 0)
+                            .clipShape(RoundedRectangle(cornerRadius: ChessClockRadius.board))
+                    )
+            }
+            .drawingGroup()
+            .blur(radius: showWelcome ? welcomeBlur : (isHovering ? 8 : 0))
+            .brightness(showWelcome ? welcomeDim : 0)
+            .scaleEffect(showWelcome ? welcomeScale : 1.0)
+            .animation(.easeInOut(duration: isHovering ? 0.2 : 0.15), value: isHovering)
 
             if isHovering {
                 GlassPillView {

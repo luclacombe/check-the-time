@@ -140,3 +140,41 @@ enum ChessClockCTADetail {
     static let hPadding: CGFloat = 12
     static let vPadding: CGFloat = 6
 }
+
+// MARK: - Welcome (Stage 0 Focus Pull)
+
+enum ChessClockWelcome {
+    // Focus pull
+    static let blurRadius: CGFloat = 25
+    static let dimAmount: Double = -0.5
+    static let zoomScale: CGFloat = 1.25
+    static let focusDelay: Double = 0.3
+    static let blurDuration: Double = 3.5
+    static let dimDuration: Double = 3.0
+    static let scaleDuration: Double = 4.0
+    static let fastFinishDuration: Double = 0.3
+    static let autoDismissDelay: Double = 6.5
+    // Board edge fill (prevents hard blur edge artifact)
+    static let boardFillColor = Color(red: 210/255, green: 177/255, blue: 140/255)
+
+    // Tagline timing
+    static let taglineFadeInAt: Double = 1.5
+    static let taglineFadeInDuration: Double = 0.6
+    static let taglineFadeOutAt: Double = 5.5
+    static let taglineFadeOutDuration: Double = 0.5
+
+    // Motes timing (group safety cutoff — most motes fade individually before this)
+    static let motesCutoffAt: Double = 2.8
+    static let motesCutoffDuration: Double = 0.5
+
+    // Motes appearance (bokeh — varied soft circles)
+    static let moteCount: Int = 10
+
+    // Tagline appearance
+    static let taglineColor = Color(red: 0.94, green: 0.89, blue: 0.78)
+    static let taglineSize: CGFloat = 16
+    static let taglineKerning: CGFloat = 2.5
+
+    // Stage A entrance delay (after Stage 0 dismiss)
+    static let stageADelay: Double = 1.0
+}

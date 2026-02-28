@@ -22,7 +22,7 @@ ClockView (holds ClockService + GuessService, manages ViewMode)
   └── [.settings] SettingsPlaceholderView(onBack:) — "Coming Soon"
 
 Onboarding overlays (conditional):
-  ├── WelcomeOverlayView (Stage 0) — title + tagline, auto-dismiss 3s
+  ├── WelcomeOverlayView (Stage 0) — cinematic focus pull, bokeh motes + tagline
   ├── OnboardingOverlayView (Stage A) — 3-step clock tour
   └── OnboardingCalloutView — reusable pill used across stages B–E
 ```
@@ -59,7 +59,7 @@ Onboarding overlays (conditional):
 
 **OnboardingCalloutView.swift** — Reusable "Gold Ember" callout pill for onboarding stages. Fully opaque (no transparency). Layers: dark espresso base → 3D depth gradient → top-edge gold gleam → gold border stroke. Outer glow (dual gold shadows) + grounding shadow. HStack: icon + text VStack + progress dots (filled gold for completed, outline for remaining). Whole view tappable. Init: `text`, optional `subtext`, `step`, `totalSteps`, `onTap`.
 
-**WelcomeOverlayView.swift** — Stage 0. "Chess Clock" title + gold divider + "Every board tells the time." subtitle. Staggered entrance animation (scrim → title → divider → subtitle over ~1s). Auto-dismiss after 3s or on tap. Exit animation via `exitProgress`. Calls `OnboardingService.dismissWelcome()`.
+**WelcomeOverlayView.swift** — Stage 0 cinematic "focus pull." Transparent overlay with bokeh gold motes (10 blurred circles, randomized size/position/opacity/color/lifespan) and tagline "Every board tells the time" (serif, 4-layer dark shadow halo). Board blur/dim/scale driven by ClockView. Auto-dismiss after 6.5s or tap to fast-finish. `DustMoteView` (private) — individual bokeh particle with 2-phase animation (fade-in + drift-up/fade-out).
 
 **OnboardingOverlayView.swift** — Stage A. 3-step progressive tour. Step 1: "Every hour, a real game" (board spotlight, ring extra dark). Step 2: "The ring shows the minutes" (ring spotlight, board extra dark). Step 3: "Tap anywhere for game details" (no scrim, board pulses infinitely). Uses `RingAnnulusShape` for spotlight mask with destinationOut blend, crisp edges (no blur). Callout positioned at bottom. Final tap calls `onBoardTap()` to navigate to info panel + `OnboardingService.dismissStageA()`. Optional `onReachFinalStep` callback fires when advancing to step 3 (used for tick mark fade-in).
 

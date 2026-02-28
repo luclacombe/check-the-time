@@ -6,6 +6,7 @@ import SwiftUI
 struct OnboardingOverlayView: View {
     let onDismiss: () -> Void
     let onBoardTap: () -> Void
+    var onShowRing: (() -> Void)? = nil
     var onReachFinalStep: (() -> Void)? = nil
 
     @State private var step: Int = 1
@@ -38,7 +39,7 @@ struct OnboardingOverlayView: View {
         .contentShape(Rectangle())
         .onTapGesture { advance() }
         .onAppear {
-            withAnimation(.easeOut(duration: 0.35)) { visible = true }
+            withAnimation(.easeOut(duration: 0.8)) { visible = true }
         }
         .onChange(of: step) { newStep in
             if newStep == 3 {
@@ -101,9 +102,10 @@ struct OnboardingOverlayView: View {
 
     private func advance() {
         if step < 3 {
-            withAnimation(ChessClockAnimation.smooth) {
+            withAnimation(.easeInOut(duration: 0.8)) {
                 step += 1
             }
+            if step == 2 { onShowRing?() }
             if step == 3 { onReachFinalStep?() }
         } else {
             OnboardingService.dismissStageA()
