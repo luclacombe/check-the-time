@@ -44,7 +44,7 @@ final class GuessService: ObservableObject {
         stats = Self.loadStats()
 
         cancellable = clockService.$state
-            .receive(on: RunLoop.main)
+            .receive(on: DispatchQueue.main)
             .sink { [weak self] newState in
                 guard let self else { return }
                 // Short-circuit: hour + AM/PM only changes once per hour.
