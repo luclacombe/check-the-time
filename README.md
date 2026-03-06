@@ -13,7 +13,7 @@ A macOS menu bar app that tells the time using real chess positions. Each hour d
   <img src="assets/clock-face.gif" alt="Chess Clock Demo" width="480">
 </p>
 
-<h3 align="center"><em>Can you guess what time it is?</em></h3>
+<h3 align="center"><em>Can you tell what time it is?</em></h3>
 
 ---
 
