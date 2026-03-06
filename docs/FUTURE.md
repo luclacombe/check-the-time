@@ -1,7 +1,6 @@
 # Future Ideas
 
-> A parking lot for ideas that are not MVP or MAP scope.
-> Nothing here should be discussed, designed, or built until v0.1.0 ships.
+> A parking lot for ideas beyond v1.0 scope.
 > Ideas go here so they are never lost.
 
 ---

@@ -43,7 +43,7 @@
 - Lichess open database rejected — it contains online blitz games, not famous OTB tournament games
 - PGN Mentor has pre-curated player archives (Kasparov, Fischer, Carlsen, etc.) with clean metadata
 - Historical ELO (pre-1970) may be `"?"` for some players — displayed as-is
-- python-chess is GPL-3 but used only in pipeline scripts, not bundled in the app (app stays MIT)
+- python-chess is GPL-3 but used only in pipeline scripts, not bundled in the app
 
 ---
 
@@ -108,7 +108,7 @@
 
 **Context:** `GameScheduler` uses `halfDayIndex % library.games.count` — a fully deterministic mapping from date+AM/PM to a game. This means every device shows the same game on the same day (like Wordle). User feedback after v0.1.0: this was surprising but not necessarily wrong.
 
-**Decision:** Keep deterministic behavior in v0.1.0. Plan per-device seed offset for v0.2.0 (N6 in TODO.md). Seed stored in `UserDefaults` on first launch; same device always returns same game for same date. Different devices diverge.
+**Decision:** Keep deterministic behavior in v0.1.0. Plan per-device seed offset for v0.2.0. Seed stored in `UserDefaults` on first launch; same device always returns same game for same date. Different devices diverge.
 
 **Consequences:**
 - The "everyone sees the same game" Wordle-like property is lost with the seed offset — a deliberate tradeoff
