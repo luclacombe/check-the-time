@@ -1,16 +1,16 @@
-# Chess Clock
+# Check the Time
 
-A macOS menu bar app that tells the time using real chess positions. Each hour displays a famous grandmaster game moments before checkmate. A new puzzle every hour.
+A new chess puzzle every hour. A native macOS app that tells time through famous checkmate positions. Find the mate, replay the game.
 
-> Pure SwiftUI + Metal. No chess engine. No network calls. No dependencies.
+> SwiftUI, Metal animations, Python data pipeline. No engine, no network, no dependencies.
 
-![CI](https://github.com/luclacombe/chess-clock/actions/workflows/ci.yml/badge.svg)
+![CI](https://github.com/luclacombe/check-the-time/actions/workflows/ci.yml/badge.svg)
 ![macOS](https://img.shields.io/badge/macOS-13%2B-blue)
 ![Swift](https://img.shields.io/badge/Swift-5.9-orange)
 ![Dependencies](https://img.shields.io/badge/dependencies-0-brightgreen)
 
 <p align="center">
-  <img src="assets/clock-face.gif" alt="Chess Clock Demo" width="480">
+  <img src="assets/clock-face.gif" alt="Check the Time Demo" width="480">
 </p>
 
 <h3 align="center"><em>Can you tell what time it is?</em></h3>
@@ -62,13 +62,13 @@ The app bundles 584 real games from grandmasters including Kasparov, Fischer, Ca
 
 ## Download
 
-**[Download the latest release](https://github.com/luclacombe/chess-clock/releases/latest)**
+**[Download the latest release](https://github.com/luclacombe/check-the-time/releases/latest)**
 
 Requires macOS 13 (Ventura) or later.
 
 ### Install
 
-1. Download `ChessClock-x.x.x.dmg` from the [Releases page](https://github.com/luclacombe/chess-clock/releases)
+1. Download `ChessClock-x.x.x.dmg` from the [Releases page](https://github.com/luclacombe/check-the-time/releases)
 2. Open the `.dmg` and drag **ChessClock** to your Applications folder
 3. First launch: right-click the app and select **Open** (the app isn't notarized so you'll have to force open it in the Privacy & Security settings)
 4. The app lives in your menu bar (2x2 board icon). Right click on the icon for settings.
@@ -78,8 +78,8 @@ Requires macOS 13 (Ventura) or later.
 ## Building from Source
 
 ```bash
-git clone https://github.com/luclacombe/chess-clock.git
-cd chess-clock
+git clone https://github.com/luclacombe/check-the-time.git
+cd check-the-time
 open ChessClock/ChessClock.xcodeproj
 # Build (Cmd+B) and Run (Cmd+R)
 ```

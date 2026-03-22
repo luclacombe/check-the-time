@@ -117,7 +117,7 @@ final class FloatingWindowManager: NSObject, NSMenuDelegate {
         menu.addItem(.separator())
 
         let quitItem = NSMenuItem(
-            title: "Quit Chess Clock",
+            title: "Quit Check the Time",
             action: #selector(quitApp),
             keyEquivalent: ""
         )

@@ -2,7 +2,7 @@
 
 ## Reporting a Vulnerability
 
-If you discover a security vulnerability in this project, please report it responsibly via [GitHub's private vulnerability reporting](https://github.com/luclacombe/chess-clock/security/advisories/new).
+If you discover a security vulnerability in this project, please report it responsibly via [GitHub's private vulnerability reporting](https://github.com/luclacombe/check-the-time/security/advisories/new).
 
 Do **not** open a public issue for security vulnerabilities.
 

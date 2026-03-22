@@ -38,7 +38,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh release create "${{ github.ref_name }}" \
-            --title "Chess Clock ${{ github.ref_name }}" \
+            --title "Check the Time ${{ github.ref_name }}" \
             --notes "Release ${{ github.ref_name }}" \
             --draft=false || true
           gh release upload "${{ github.ref_name }}" \

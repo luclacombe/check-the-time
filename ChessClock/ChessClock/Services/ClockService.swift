@@ -12,7 +12,7 @@ final class ClockService: ObservableObject {
     static let placeholder = ChessGame(
         white: "Loading...", black: "Loading...",
         whiteElo: "?", blackElo: "?",
-        tournament: "Chess Clock", year: 2026,
+        tournament: "Check the Time", year: 2026,
         finalMove: "",
         positions: Array(repeating: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", count: 12)
     )
